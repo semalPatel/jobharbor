@@ -5,6 +5,11 @@ from dataclasses import dataclass
 
 from jobharbor.models import ApplicationStatus
 from jobharbor.repositories.application_repo import ApplicationRepository
+from jobharbor.workers.errors import (
+    PrefillWorkerError,
+    classify_prefill_error,
+    is_retryable_prefill_error,
+)
 
 FINAL_SUBMIT_SELECTOR = "button[type='submit']"
 SUBMIT_SELECTOR_VARIANTS: tuple[str, ...] = (
@@ -158,3 +163,11 @@ def _is_truthy(value: object) -> bool:
         lowered = value.strip().lower()
         return lowered in {"1", "true", "yes", "y", "on"}
     return False
+
+
+def classify_prefill_exception(error: BaseException) -> PrefillWorkerError:
+    return classify_prefill_error(error)
+
+
+def should_retry_prefill_exception(error: BaseException) -> bool:
+    return is_retryable_prefill_error(error)
