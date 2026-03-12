@@ -32,6 +32,21 @@ def _create_scheduler() -> SchedulerProtocol:
     return BackgroundScheduler()
 
 
+def _get_job_interval_hours(job: Any) -> int | None:
+    if isinstance(job, dict):
+        hours = job.get("hours")
+        return hours if isinstance(hours, int) else None
+
+    trigger = getattr(job, "trigger", None)
+    interval = getattr(trigger, "interval", None)
+    if interval is not None and hasattr(interval, "total_seconds"):
+        total_seconds = interval.total_seconds()
+        if total_seconds % 3600 == 0:
+            return int(total_seconds // 3600)
+
+    return None
+
+
 def bootstrap_scheduler(
     *,
     scan_job: Callable[[], None],
@@ -43,13 +58,24 @@ def bootstrap_scheduler(
 
     active_scheduler = scheduler or _create_scheduler()
 
-    if active_scheduler.get_job(SCAN_JOB_ID) is None:
+    existing_job = active_scheduler.get_job(SCAN_JOB_ID)
+    if existing_job is None:
         active_scheduler.add_job(
             scan_job,
             "interval",
             id=SCAN_JOB_ID,
             hours=interval_hours,
             replace_existing=False,
+        )
+        return active_scheduler
+
+    if _get_job_interval_hours(existing_job) != interval_hours:
+        active_scheduler.add_job(
+            scan_job,
+            "interval",
+            id=SCAN_JOB_ID,
+            hours=interval_hours,
+            replace_existing=True,
         )
 
     return active_scheduler
