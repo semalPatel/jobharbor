@@ -43,18 +43,24 @@ class NotificationRouter:
         source: str,
         review_url: str,
     ) -> bool:
-        push_delivered = self._push_notifier.send(
-            title=title,
-            company=company,
-            source=source,
-            review_url=review_url,
-        )
+        try:
+            push_delivered = self._push_notifier.send(
+                title=title,
+                company=company,
+                source=source,
+                review_url=review_url,
+            )
+        except Exception:
+            push_delivered = False
         if push_delivered:
             return True
 
-        return self._email_fallback_notifier.send(
-            title=title,
-            company=company,
-            source=source,
-            review_url=review_url,
-        )
+        try:
+            return self._email_fallback_notifier.send(
+                title=title,
+                company=company,
+                source=source,
+                review_url=review_url,
+            )
+        except Exception:
+            return False

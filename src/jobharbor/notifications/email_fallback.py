@@ -83,12 +83,19 @@ class EmailFallbackNotifier:
         source: str,
         review_url: str,
     ) -> bool:
-        subject = f"Job review ready: {title}"
+        title_text = title.strip()
+        company_text = company.strip()
+        source_text = source.strip()
+        review_url_text = review_url.strip()
+        if not title_text or not company_text or not source_text or not review_url_text:
+            return False
+
+        subject = f"Job review ready: {title_text}"
         body = (
-            f"title: {title}\n"
-            f"company: {company}\n"
-            f"source: {source}\n"
-            f"review_url: {review_url}"
+            f"title: {title_text}\n"
+            f"company: {company_text}\n"
+            f"source: {source_text}\n"
+            f"review_url: {review_url_text}"
         )
 
         try:
@@ -102,7 +109,7 @@ class EmailFallbackNotifier:
                 body=body,
                 timeout_seconds=self._timeout_seconds,
             )
-        except (smtplib.SMTPException, TimeoutError, ConnectionError, OSError):
+        except Exception:
             return False
 
         return True
