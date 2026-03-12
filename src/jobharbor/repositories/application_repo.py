@@ -2,6 +2,7 @@ from sqlmodel import Session, select
 
 from jobharbor.models import (
     ACTIVE_APPLICATION_STATUSES,
+    ALLOWED_APPLICATION_TRANSITIONS,
     Application,
     ApplicationStatus,
 )
@@ -12,18 +13,16 @@ class ApplicationRepository:
         self._session = session
 
     def enqueue(self, job_id: int) -> Application:
-        existing_active = self._session.exec(
-            select(Application.id)
-            .where(Application.job_id == job_id)
-            .where(Application.status.in_(ACTIVE_APPLICATION_STATUSES))
-            .limit(1)
-        ).first()
-        if existing_active is not None:
+        if self._has_other_active_application(job_id=job_id):
             raise ValueError(f"active application already exists for job_id={job_id}")
 
         application = Application(job_id=job_id, status=ApplicationStatus.drafting)
         self._session.add(application)
-        self._session.commit()
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         self._session.refresh(application)
         return application
 
@@ -47,8 +46,44 @@ class ApplicationRepository:
         if application is None:
             raise LookupError(f"application not found: id={app_id}")
 
+        self._ensure_transition_allowed(from_status=application.status, to_status=to_status)
+        if to_status in ACTIVE_APPLICATION_STATUSES and self._has_other_active_application(
+            job_id=application.job_id,
+            excluded_app_id=application.id,
+        ):
+            raise ValueError(f"active application already exists for job_id={application.job_id}")
+
         application.status = to_status
         self._session.add(application)
-        self._session.commit()
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         self._session.refresh(application)
         return application
+
+    def _has_other_active_application(self, *, job_id: int, excluded_app_id: int | None = None) -> bool:
+        stmt = (
+            select(Application.id)
+            .where(Application.job_id == job_id)
+            .where(Application.status.in_(ACTIVE_APPLICATION_STATUSES))
+        )
+        if excluded_app_id is not None:
+            stmt = stmt.where(Application.id != excluded_app_id)
+        return self._session.exec(stmt.limit(1)).first() is not None
+
+    def _ensure_transition_allowed(
+        self,
+        *,
+        from_status: ApplicationStatus,
+        to_status: ApplicationStatus,
+    ) -> None:
+        if from_status == to_status:
+            return
+
+        allowed = ALLOWED_APPLICATION_TRANSITIONS[from_status]
+        if to_status not in allowed:
+            raise ValueError(
+                f"disallowed transition from {from_status.value} to {to_status.value}"
+            )

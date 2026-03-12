@@ -1,8 +1,10 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 import pytest
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import select
 
-from jobharbor.models import ApplicationStatus, Job
+from jobharbor.models import Application, ApplicationStatus, Job
 from jobharbor.repositories.application_repo import ApplicationRepository
 
 
@@ -48,6 +50,7 @@ def test_enqueue_allows_requeue_after_terminal_status(session: Session) -> None:
     repo = ApplicationRepository(session)
 
     first = repo.enqueue(job.id)
+    repo.transition_status(first.id, ApplicationStatus.ready_for_review)
     repo.transition_status(first.id, ApplicationStatus.submitted)
 
     second = repo.enqueue(job.id)
@@ -92,3 +95,89 @@ def test_transition_status_raises_for_missing_application(session: Session) -> N
 
     with pytest.raises(LookupError, match="application not found"):
         repo.transition_status(999999, ApplicationStatus.ready_for_review)
+
+
+def test_transition_status_rejects_disallowed_transition(session: Session) -> None:
+    job = _create_job(session, source="greenhouse", external_id="gh-8")
+    repo = ApplicationRepository(session)
+    app = repo.enqueue(job.id)
+
+    with pytest.raises(ValueError, match="disallowed transition"):
+        repo.transition_status(app.id, ApplicationStatus.submitted)
+
+
+def test_transition_into_active_blocked_when_other_active_exists(session: Session) -> None:
+    job = _create_job(session, source="greenhouse", external_id="gh-9")
+    repo = ApplicationRepository(session)
+
+    active = repo.enqueue(job.id)
+    inactive = Application(job_id=job.id, status=ApplicationStatus.failed)
+    session.add(inactive)
+    session.commit()
+    session.refresh(inactive)
+
+    with pytest.raises(ValueError, match="active application"):
+        repo.transition_status(inactive.id, ApplicationStatus.drafting)
+
+    current_active = session.get(Application, active.id)
+    assert current_active is not None
+    assert current_active.status == ApplicationStatus.drafting
+
+
+def test_db_invariant_rejects_duplicate_active_application(session: Session) -> None:
+    job = _create_job(session, source="greenhouse", external_id="gh-10")
+    first = Application(job_id=job.id, status=ApplicationStatus.drafting)
+    session.add(first)
+    session.commit()
+
+    second = Application(job_id=job.id, status=ApplicationStatus.ready_for_review)
+    session.add(second)
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+
+
+def test_enqueue_commit_failure_rolls_back_and_session_remains_usable(
+    session: Session,
+) -> None:
+    job = _create_job(session, source="greenhouse", external_id="gh-11")
+    repo = ApplicationRepository(session)
+    existing = Application(job_id=job.id, status=ApplicationStatus.drafting)
+    session.add(existing)
+    session.commit()
+
+    repo._has_other_active_application = (  # type: ignore[method-assign]
+        lambda **_: False
+    )
+    with pytest.raises(IntegrityError):
+        repo.enqueue(job.id)
+
+    applications = session.exec(select(Application)).all()
+    assert len(applications) == 1
+    assert applications[0].id == existing.id
+
+
+def test_transition_commit_failure_rolls_back_and_session_remains_usable(
+    session: Session,
+) -> None:
+    job = _create_job(session, source="greenhouse", external_id="gh-12")
+    repo = ApplicationRepository(session)
+    active = repo.enqueue(job.id)
+    inactive = Application(job_id=job.id, status=ApplicationStatus.failed)
+    session.add(inactive)
+    session.commit()
+    session.refresh(inactive)
+
+    repo._has_other_active_application = (  # type: ignore[method-assign]
+        lambda **_: False
+    )
+    with pytest.raises(IntegrityError):
+        repo.transition_status(inactive.id, ApplicationStatus.drafting)
+
+    current_inactive = session.get(Application, inactive.id)
+    assert current_inactive is not None
+    assert current_inactive.status == ApplicationStatus.failed
+
+    current_active = session.get(Application, active.id)
+    assert current_active is not None
+    assert current_active.status == ApplicationStatus.drafting

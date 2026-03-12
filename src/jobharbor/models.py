@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Index, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -24,6 +24,22 @@ ACTIVE_APPLICATION_STATUSES: tuple[ApplicationStatus, ...] = (
     ApplicationStatus.ready_for_review,
 )
 
+ALLOWED_APPLICATION_TRANSITIONS: dict[ApplicationStatus, tuple[ApplicationStatus, ...]] = {
+    ApplicationStatus.drafting: (
+        ApplicationStatus.ready_for_review,
+        ApplicationStatus.failed,
+        ApplicationStatus.abandoned,
+    ),
+    ApplicationStatus.ready_for_review: (
+        ApplicationStatus.submitted,
+        ApplicationStatus.failed,
+        ApplicationStatus.abandoned,
+    ),
+    ApplicationStatus.submitted: (),
+    ApplicationStatus.failed: (ApplicationStatus.drafting,),
+    ApplicationStatus.abandoned: (),
+}
+
 
 class RunStatus(str, Enum):
     started = "started"
@@ -44,6 +60,14 @@ class Job(SQLModel, table=True):
 
 class Application(SQLModel, table=True):
     __tablename__ = "applications"
+    __table_args__ = (
+        Index(
+            "uq_applications_active_per_job",
+            "job_id",
+            unique=True,
+            sqlite_where=text("status IN ('drafting', 'ready_for_review')"),
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     job_id: int = Field(foreign_key="jobs.id", index=True)
