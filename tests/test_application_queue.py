@@ -1,7 +1,9 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 import pytest
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.schema import CreateIndex
 from sqlmodel import select
 
 from jobharbor.models import Application, ApplicationStatus, Job
@@ -135,6 +137,25 @@ def test_db_invariant_rejects_duplicate_active_application(session: Session) -> 
     with pytest.raises(IntegrityError):
         session.commit()
     session.rollback()
+
+
+def test_active_partial_unique_index_has_where_clause_for_sqlite_and_postgresql() -> None:
+    index = next(
+        idx for idx in Application.__table__.indexes if idx.name == "uq_applications_active_per_job"
+    )
+    sqlite_sql = str(CreateIndex(index).compile(dialect=sqlite.dialect()))
+    postgresql_sql = str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+
+    sqlite_lower = sqlite_sql.lower()
+    postgresql_lower = postgresql_sql.lower()
+
+    assert " where " in sqlite_lower
+    assert "drafting" in sqlite_lower
+    assert "ready_for_review" in sqlite_lower
+
+    assert " where " in postgresql_lower
+    assert "drafting" in postgresql_lower
+    assert "ready_for_review" in postgresql_lower
 
 
 def test_enqueue_commit_failure_rolls_back_and_session_remains_usable(

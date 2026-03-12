@@ -66,6 +66,7 @@ class Application(SQLModel, table=True):
             "job_id",
             unique=True,
             sqlite_where=text("status IN ('drafting', 'ready_for_review')"),
+            postgresql_where=text("status IN ('drafting', 'ready_for_review')"),
         ),
     )
 
