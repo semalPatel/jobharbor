@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         "pushover_api_token",
         "pushover_user_key",
         "smtp_host",
+        "smtp_port",
         "smtp_user",
         "smtp_pass",
         "smtp_to",

@@ -69,3 +69,12 @@ def test_blank_optional_values_normalize_to_none(monkeypatch) -> None:
     assert settings.smtp_user is None
     assert settings.smtp_pass is None
     assert settings.smtp_to is None
+
+
+def test_blank_smtp_port_normalizes_to_none(monkeypatch) -> None:
+    clear_env(monkeypatch)
+    monkeypatch.setenv("SMTP_PORT", "")
+
+    settings = Settings()
+
+    assert settings.smtp_port is None
