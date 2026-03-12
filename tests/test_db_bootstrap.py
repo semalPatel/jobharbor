@@ -1,50 +1,98 @@
-from pathlib import Path
+import pytest
 
-from sqlalchemy import inspect
-from sqlmodel import Field, SQLModel
-
-from jobharbor.db import get_engine, get_session, init_db
+import jobharbor.db as db
 
 
-class BootstrapProbe(SQLModel, table=True):
-    __tablename__ = "bootstrap_probe"
+def test_get_engine_is_cached_and_sets_sqlite_connect_args(monkeypatch) -> None:
+    db.get_engine.cache_clear()
 
-    id: int | None = Field(default=None, primary_key=True)
-    value: str
+    calls: list[tuple[str, dict[str, object]]] = []
 
+    class FakeSettings:
+        database_url = "sqlite:///./jobharbor.db"
 
-def sqlite_url_for(path: Path) -> str:
-    return f"sqlite:///{path}"
+    class FakeEngine:
+        def __init__(self, url: str):
+            self.url = url
 
+    def fake_create_engine(url: str, **kwargs):
+        calls.append((url, kwargs))
+        return FakeEngine(url)
 
-def test_get_engine_uses_settings_database_url(monkeypatch, tmp_path: Path) -> None:
-    db_path = tmp_path / "engine.db"
-    monkeypatch.setenv("DATABASE_URL", sqlite_url_for(db_path))
+    monkeypatch.setattr(db, "Settings", lambda: FakeSettings())
+    monkeypatch.setattr(db, "create_engine", fake_create_engine)
 
-    engine = get_engine()
+    engine_one = db.get_engine()
+    engine_two = db.get_engine()
 
-    assert str(engine.url) == sqlite_url_for(db_path)
-
-
-def test_get_session_returns_session_bound_to_engine(monkeypatch, tmp_path: Path) -> None:
-    db_path = tmp_path / "session.db"
-    monkeypatch.setenv("DATABASE_URL", sqlite_url_for(db_path))
-
-    session = get_session()
-    try:
-        bind = session.get_bind()
-        assert bind is not None
-        assert str(bind.url) == sqlite_url_for(db_path)
-    finally:
-        session.close()
+    assert engine_one is engine_two
+    assert calls == [
+        (
+            "sqlite:///./jobharbor.db",
+            {"connect_args": {"check_same_thread": False}},
+        )
+    ]
 
 
-def test_init_db_bootstraps_sqlmodel_metadata(monkeypatch, tmp_path: Path) -> None:
-    db_path = tmp_path / "bootstrap.db"
-    monkeypatch.setenv("DATABASE_URL", sqlite_url_for(db_path))
+def test_get_engine_does_not_set_sqlite_connect_args_for_non_sqlite(monkeypatch) -> None:
+    db.get_engine.cache_clear()
 
-    init_db()
+    calls: list[tuple[str, dict[str, object]]] = []
 
-    engine = get_engine()
-    inspector = inspect(engine)
-    assert inspector.has_table("bootstrap_probe")
+    class FakeSettings:
+        database_url = "postgresql+psycopg://user:pass@localhost/jobharbor"
+
+    def fake_create_engine(url: str, **kwargs):
+        calls.append((url, kwargs))
+        return object()
+
+    monkeypatch.setattr(db, "Settings", lambda: FakeSettings())
+    monkeypatch.setattr(db, "create_engine", fake_create_engine)
+
+    db.get_engine()
+
+    assert calls == [("postgresql+psycopg://user:pass@localhost/jobharbor", {})]
+
+
+def test_get_session_yields_and_closes_session(monkeypatch) -> None:
+    engine = object()
+
+    class FakeSession:
+        def __init__(self, bound_engine: object):
+            assert bound_engine is engine
+            self.closed = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            self.closed = True
+
+    monkeypatch.setattr(db, "get_engine", lambda: engine)
+    monkeypatch.setattr(db, "Session", FakeSession)
+
+    session_iter = db.get_session()
+    session = next(session_iter)
+
+    assert isinstance(session, FakeSession)
+    assert session.closed is False
+
+    with pytest.raises(StopIteration):
+        next(session_iter)
+
+    assert session.closed is True
+
+
+def test_init_db_calls_create_all_with_engine(monkeypatch) -> None:
+    engine = object()
+    create_all_calls: list[object] = []
+
+    def fake_create_all(bound_engine: object) -> None:
+        create_all_calls.append(bound_engine)
+
+    monkeypatch.setattr(db, "get_engine", lambda: engine)
+    monkeypatch.setattr(db.SQLModel.metadata, "create_all", fake_create_all)
+
+    db.init_db()
+
+    assert create_all_calls == [engine]
