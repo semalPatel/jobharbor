@@ -1,4 +1,5 @@
 from collections.abc import Mapping, Sequence, Set
+import math
 import re
 from typing import Any
 
@@ -34,6 +35,8 @@ def compute_job_score(
 def is_job_eligible(score: float, *, minimum_threshold: float) -> bool:
     """Return True when score satisfies the minimum threshold policy."""
 
+    _validate_probability(score, field_name="score")
+    _validate_probability(minimum_threshold, field_name="minimum_threshold")
     return score >= minimum_threshold
 
 
@@ -57,7 +60,8 @@ def _as_text(value: Any) -> str:
     if value is None:
         return ""
     text = str(value).strip().lower()
-    text = re.sub(r"[^a-z0-9]+", " ", text)
+    # Preserve `+` and `#` so languages like c++ and c# remain distinct tokens.
+    text = re.sub(r"[^a-z0-9+#]+", " ", text)
     return " ".join(text.split())
 
 
@@ -69,3 +73,11 @@ def _tokenize(text: str) -> tuple[str, ...]:
 
 def _normalize_terms(terms: Set[str]) -> set[str]:
     return {normalized for term in terms if (normalized := _as_text(term))}
+
+
+def _validate_probability(value: float, *, field_name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field_name} must be a finite number in range [0, 1]")
+    numeric = float(value)
+    if not math.isfinite(numeric) or numeric < 0.0 or numeric > 1.0:
+        raise ValueError(f"{field_name} must be a finite number in range [0, 1]")
