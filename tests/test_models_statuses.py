@@ -1,6 +1,9 @@
+import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import inspect
 from sqlmodel import SQLModel, Session, create_engine, select
 
+import jobharbor.db as db
 from jobharbor.models import (
     Application,
     ApplicationStatus,
@@ -76,3 +79,27 @@ def test_models_create_tables_and_round_trip_rows() -> None:
     assert saved_job.status == JobStatus.discovered
     assert saved_application.status == ApplicationStatus.ready_for_review
     assert saved_run_log.status == RunStatus.started
+
+
+def test_job_source_external_id_is_unique() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add(Job(source="greenhouse", external_id="dupe-id"))
+        session.commit()
+
+        session.add(Job(source="greenhouse", external_id="dupe-id"))
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def test_application_fk_rejects_nonexistent_job_id_when_enforced() -> None:
+    db._engine_for_url.cache_clear()
+    engine = db.get_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add(Application(job_id=999_999, status=ApplicationStatus.drafting))
+        with pytest.raises(IntegrityError):
+            session.commit()

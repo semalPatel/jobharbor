@@ -7,6 +7,7 @@ def test_get_engine_reuses_same_url_and_separates_different_urls(monkeypatch) ->
     db._engine_for_url.cache_clear()
 
     calls: list[tuple[str, dict[str, object]]] = []
+    listen_calls: list[tuple[object, str, object]] = []
 
     class FakeEngine:
         def __init__(self, url: str):
@@ -16,7 +17,11 @@ def test_get_engine_reuses_same_url_and_separates_different_urls(monkeypatch) ->
         calls.append((url, kwargs))
         return FakeEngine(url)
 
+    def fake_listen(target: object, identifier: str, fn: object) -> None:
+        listen_calls.append((target, identifier, fn))
+
     monkeypatch.setattr(db, "create_engine", fake_create_engine)
+    monkeypatch.setattr(db.event, "listen", fake_listen)
 
     engine_one = db.get_engine("sqlite:///./one.db")
     engine_two = db.get_engine("sqlite:///./one.db")
@@ -34,6 +39,7 @@ def test_get_engine_reuses_same_url_and_separates_different_urls(monkeypatch) ->
             {"connect_args": {"check_same_thread": False}},
         ),
     ]
+    assert [identifier for _, identifier, _ in listen_calls] == ["connect", "connect"]
 
 
 def test_get_engine_does_not_set_sqlite_connect_args_for_non_sqlite(monkeypatch) -> None:

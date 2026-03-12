@@ -1,5 +1,6 @@
 from enum import Enum
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -27,6 +28,7 @@ class RunStatus(str, Enum):
 
 class Job(SQLModel, table=True):
     __tablename__ = "jobs"
+    __table_args__ = (UniqueConstraint("source", "external_id"),)
 
     id: int | None = Field(default=None, primary_key=True)
     source: str = Field(index=True)

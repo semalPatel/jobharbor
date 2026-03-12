@@ -1,6 +1,7 @@
 from collections.abc import Iterator
 from functools import lru_cache
 
+from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlmodel import SQLModel, Session, create_engine
 
@@ -10,11 +11,22 @@ from jobharbor.config import Settings
 @lru_cache
 def _engine_for_url(database_url: str) -> Engine:
     if database_url.startswith("sqlite"):
-        return create_engine(
+        engine = create_engine(
             database_url,
             connect_args={"check_same_thread": False},
         )
+        event.listen(engine, "connect", _set_sqlite_foreign_keys_pragma)
+        return engine
     return create_engine(database_url)
+
+
+def _set_sqlite_foreign_keys_pragma(dbapi_connection, connection_record) -> None:
+    del connection_record
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+    finally:
+        cursor.close()
 
 
 def get_engine(database_url: str | None = None) -> Engine:
