@@ -5,6 +5,21 @@ from typing import Any
 from jobharbor.connectors.base import JobConnector, validate_jobs_payload
 from jobharbor.models import RunStatus
 
+ROLLOUT_SOURCE_ORDER: tuple[str, ...] = ("greenhouse", "ashby", "lever")
+
+
+def order_connectors_for_rollout(
+    connectors: Sequence[tuple[str, JobConnector]],
+) -> list[tuple[str, JobConnector]]:
+    order_lookup = {source: index for index, source in enumerate(ROLLOUT_SOURCE_ORDER)}
+    return sorted(
+        list(connectors),
+        key=lambda item: (
+            order_lookup.get(item[0], len(ROLLOUT_SOURCE_ORDER)),
+            item[0],
+        ),
+    )
+
 
 @dataclass(frozen=True)
 class DiscoveryRunOutcome:
@@ -33,7 +48,7 @@ class DiscoveryService:
     """Orchestrates discovery connector execution in deterministic configured order."""
 
     def __init__(self, connectors: Sequence[tuple[str, JobConnector]]) -> None:
-        self._connectors = list(connectors)
+        self._connectors = order_connectors_for_rollout(connectors)
 
     def discover(self) -> tuple[list[dict[str, Any]], DiscoveryRunOutcome]:
         normalized_jobs: list[dict[str, Any]] = []

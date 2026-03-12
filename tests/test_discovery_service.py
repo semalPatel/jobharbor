@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from jobharbor.models import RunStatus
-from jobharbor.services.discovery_service import DiscoveryService
+from jobharbor.services.discovery_service import DiscoveryService, order_connectors_for_rollout
 
 
 class RecordingConnector:
@@ -278,3 +278,22 @@ def test_discovery_service_unsupported_key_types_use_stable_empty_string() -> No
 
     assert run.status is RunStatus.success
     assert [job["url"] for job in jobs] == ["https://example.test/b", "https://example.test/a"]
+
+
+def test_order_connectors_for_rollout_enforces_greenhouse_ashby_lever() -> None:
+    call_log: list[str] = []
+    greenhouse = RecordingConnector(name="greenhouse", call_log=call_log, payload=[])
+    ashby = RecordingConnector(name="ashby", call_log=call_log, payload=[])
+    lever = RecordingConnector(name="lever", call_log=call_log, payload=[])
+    custom = RecordingConnector(name="custom", call_log=call_log, payload=[])
+
+    ordered = order_connectors_for_rollout(
+        [
+            ("custom", custom),
+            ("lever", lever),
+            ("ashby", ashby),
+            ("greenhouse", greenhouse),
+        ]
+    )
+
+    assert [source for source, _ in ordered] == ["greenhouse", "ashby", "lever", "custom"]
