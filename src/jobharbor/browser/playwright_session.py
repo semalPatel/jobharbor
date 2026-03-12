@@ -17,6 +17,7 @@ class ConfigurablePage(Protocol):
 
 
 T = TypeVar("T")
+BackoffStrategy = Callable[[int, float], float]
 
 
 class PlaywrightSession:
@@ -30,6 +31,9 @@ class PlaywrightSession:
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        _validate_positive_int("launch_timeout_ms", launch_timeout_ms)
+        _validate_positive_int("action_timeout_ms", action_timeout_ms)
+        _validate_positive_int("navigation_timeout_ms", navigation_timeout_ms)
         if retry_attempts <= 0:
             raise ValueError("retry_attempts must be greater than 0")
 
@@ -57,10 +61,14 @@ class PlaywrightSession:
         attempts: int | None = None,
         retry_exceptions: tuple[type[BaseException], ...],
         retry_delay_seconds: float = 0.0,
+        exponential_backoff: bool = False,
+        backoff_strategy: BackoffStrategy | None = None,
     ) -> T:
         max_attempts = attempts if attempts is not None else self.retry_attempts
         if max_attempts <= 0:
             raise ValueError("attempts must be greater than 0")
+        if retry_delay_seconds < 0:
+            raise ValueError("retry_delay_seconds must be non-negative")
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -69,6 +77,32 @@ class PlaywrightSession:
                 if attempt >= max_attempts:
                     raise
                 if retry_delay_seconds > 0:
-                    self._sleep(retry_delay_seconds)
+                    self._sleep(
+                        _compute_retry_delay_seconds(
+                            retry_index=attempt,
+                            base_delay_seconds=retry_delay_seconds,
+                            exponential_backoff=exponential_backoff,
+                            backoff_strategy=backoff_strategy,
+                        )
+                    )
 
         raise RuntimeError("unreachable")
+
+
+def _validate_positive_int(name: str, value: int) -> None:
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than 0")
+
+
+def _compute_retry_delay_seconds(
+    *,
+    retry_index: int,
+    base_delay_seconds: float,
+    exponential_backoff: bool,
+    backoff_strategy: BackoffStrategy | None,
+) -> float:
+    if backoff_strategy is not None:
+        return backoff_strategy(retry_index, base_delay_seconds)
+    if exponential_backoff:
+        return base_delay_seconds * (2 ** (retry_index - 1))
+    return base_delay_seconds
