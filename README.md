@@ -10,6 +10,12 @@ python3 -m venv .venv
 ./.venv/bin/pytest -q
 ```
 
+## MVP Verification
+
+```bash
+./scripts/verify_mvp.sh
+```
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env` and fill credentials.
