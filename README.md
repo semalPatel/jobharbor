@@ -18,14 +18,15 @@ python3 -m venv .venv
 
 ## Homelab Deployment
 
-1. Copy `.env.example` to `.env` and fill credentials.
+1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.
 2. Build and run with Docker Compose:
 
 ```bash
 docker compose up -d --build
 ```
 
-3. Verify API health:
+3. The container boots the scan scheduler on startup (runs one cycle immediately and every 6 hours) and the SQLite file stays under `./data/jobharbor.db` thanks to `DATABASE_URL=sqlite:////app/data/jobharbor.db`.
+4. Verify API health:
 
 ```bash
 curl -fsS http://localhost:8080/health

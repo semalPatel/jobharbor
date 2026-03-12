@@ -39,5 +39,5 @@ def get_session() -> Iterator[Session]:
         yield session
 
 
-def init_db() -> None:
-    SQLModel.metadata.create_all(get_engine())
+def init_db(engine: Engine | None = None) -> None:
+    SQLModel.metadata.create_all(engine or get_engine())

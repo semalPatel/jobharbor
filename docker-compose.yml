@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      DATABASE_URL: sqlite:////app/data/jobharbor.db
     ports:
       - "8080:8080"
     volumes:
