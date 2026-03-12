@@ -12,6 +12,7 @@ class DiscoveryRunOutcome:
     total_jobs: int
     connectors_total: int
     connectors_failed: int
+    failure_details: list[dict[str, str]]
 
     def to_run_log_payload(self) -> dict[str, str | RunStatus]:
         if self.connectors_failed == 0:
@@ -36,19 +37,26 @@ class DiscoveryService:
 
     def discover(self) -> tuple[list[dict[str, Any]], DiscoveryRunOutcome]:
         normalized_jobs: list[dict[str, Any]] = []
-        connector_failures = 0
+        failure_details: list[dict[str, str]] = []
 
         for source, connector in self._connectors:
             try:
                 rows = validate_jobs_payload(connector.fetch_jobs())
-            except Exception:
-                connector_failures += 1
+            except Exception as exc:
+                failure_details.append(
+                    {
+                        "source": source,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
                 continue
 
             connector_jobs = [self._normalize_job(source, row) for row in rows]
             connector_jobs.sort(key=self._job_sort_key)
             normalized_jobs.extend(connector_jobs)
 
+        connector_failures = len(failure_details)
         run_status = self._resolve_run_status(
             connectors_total=len(self._connectors),
             connectors_failed=connector_failures,
@@ -58,6 +66,7 @@ class DiscoveryService:
             total_jobs=len(normalized_jobs),
             connectors_total=len(self._connectors),
             connectors_failed=connector_failures,
+            failure_details=failure_details,
         )
         return normalized_jobs, outcome
 
@@ -75,10 +84,17 @@ class DiscoveryService:
 
     def _job_sort_key(self, job: Mapping[str, Any]) -> tuple[str, str, str, str, str, str]:
         return (
-            str(job.get("external_id", "")),
-            str(job.get("posted_at", "")),
-            str(job.get("title", "")),
-            str(job.get("company", "")),
-            str(job.get("location", "")),
-            str(job.get("url", "")),
+            self._as_sortable_text(job.get("external_id")),
+            self._as_sortable_text(job.get("posted_at")),
+            self._as_sortable_text(job.get("title")),
+            self._as_sortable_text(job.get("company")),
+            self._as_sortable_text(job.get("location")),
+            self._as_sortable_text(job.get("url")),
         )
+
+    def _as_sortable_text(self, value: Any) -> str:
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+        return ""
