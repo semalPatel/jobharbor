@@ -19,6 +19,12 @@ class ApplicationStatus(str, Enum):
     abandoned = "abandoned"
 
 
+ACTIVE_APPLICATION_STATUSES: tuple[ApplicationStatus, ...] = (
+    ApplicationStatus.drafting,
+    ApplicationStatus.ready_for_review,
+)
+
+
 class RunStatus(str, Enum):
     started = "started"
     success = "success"
