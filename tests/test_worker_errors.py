@@ -8,6 +8,7 @@ from jobharbor.workers.errors import (
     AuthExpiredPrefillError,
     CaptchaDetectedPrefillError,
     FormChangedPrefillError,
+    PrefillWorkerError,
     TransientPrefillError,
     ValidationFailedPrefillError,
     classify_prefill_error,
@@ -38,9 +39,13 @@ def test_classify_prefill_error_maps_known_exception_patterns(
 def test_retryability_only_for_transient_errors() -> None:
     transient = classify_prefill_error(TimeoutError("temporary network issue"))
     auth_expired = classify_prefill_error(RuntimeError("auth token expired"))
+    unknown = classify_prefill_error(RuntimeError("unexpected page state"))
 
     assert is_retryable_prefill_error(transient) is True
     assert is_retryable_prefill_error(auth_expired) is False
+    assert isinstance(unknown, PrefillWorkerError)
+    assert is_retryable_prefill_error(unknown) is False
+    assert is_retryable_prefill_error(RuntimeError("unexpected page state")) is False
 
 
 def test_greenhouse_prefill_error_helpers_delegate_to_taxonomy() -> None:

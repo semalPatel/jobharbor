@@ -79,7 +79,7 @@ def classify_prefill_error(error: BaseException) -> PrefillWorkerError:
     ):
         return ValidationFailedPrefillError.from_error(error)
 
-    return TransientPrefillError.from_error(error)
+    return PrefillWorkerError.from_error(error)
 
 
 def is_retryable_prefill_error(error: BaseException) -> bool:
