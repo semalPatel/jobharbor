@@ -1,0 +1,13 @@
+services:
+  jobharbor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobharbor
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
