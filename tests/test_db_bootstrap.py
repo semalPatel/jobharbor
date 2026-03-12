@@ -3,13 +3,10 @@ import pytest
 import jobharbor.db as db
 
 
-def test_get_engine_is_cached_and_sets_sqlite_connect_args(monkeypatch) -> None:
-    db.get_engine.cache_clear()
+def test_get_engine_reuses_same_url_and_separates_different_urls(monkeypatch) -> None:
+    db._engine_for_url.cache_clear()
 
     calls: list[tuple[str, dict[str, object]]] = []
-
-    class FakeSettings:
-        database_url = "sqlite:///./jobharbor.db"
 
     class FakeEngine:
         def __init__(self, url: str):
@@ -19,39 +16,60 @@ def test_get_engine_is_cached_and_sets_sqlite_connect_args(monkeypatch) -> None:
         calls.append((url, kwargs))
         return FakeEngine(url)
 
-    monkeypatch.setattr(db, "Settings", lambda: FakeSettings())
     monkeypatch.setattr(db, "create_engine", fake_create_engine)
 
-    engine_one = db.get_engine()
-    engine_two = db.get_engine()
+    engine_one = db.get_engine("sqlite:///./one.db")
+    engine_two = db.get_engine("sqlite:///./one.db")
+    engine_three = db.get_engine("sqlite:///./two.db")
 
     assert engine_one is engine_two
+    assert engine_three is not engine_one
     assert calls == [
         (
-            "sqlite:///./jobharbor.db",
+            "sqlite:///./one.db",
             {"connect_args": {"check_same_thread": False}},
-        )
+        ),
+        (
+            "sqlite:///./two.db",
+            {"connect_args": {"check_same_thread": False}},
+        ),
     ]
 
 
 def test_get_engine_does_not_set_sqlite_connect_args_for_non_sqlite(monkeypatch) -> None:
-    db.get_engine.cache_clear()
+    db._engine_for_url.cache_clear()
 
     calls: list[tuple[str, dict[str, object]]] = []
-
-    class FakeSettings:
-        database_url = "postgresql+psycopg://user:pass@localhost/jobharbor"
 
     def fake_create_engine(url: str, **kwargs):
         calls.append((url, kwargs))
         return object()
 
-    monkeypatch.setattr(db, "Settings", lambda: FakeSettings())
     monkeypatch.setattr(db, "create_engine", fake_create_engine)
+
+    db.get_engine("postgresql+psycopg://user:pass@localhost/jobharbor")
+
+    assert calls == [("postgresql+psycopg://user:pass@localhost/jobharbor", {})]
+
+
+def test_get_engine_uses_settings_database_url_when_not_provided(monkeypatch) -> None:
+    db._engine_for_url.cache_clear()
+
+    class FakeSettings:
+        database_url = "sqlite:///./from-settings.db"
+
+    captured_urls: list[str] = []
+
+    def fake_engine_for_url(database_url: str):
+        captured_urls.append(database_url)
+        return object()
+
+    monkeypatch.setattr(db, "Settings", lambda: FakeSettings())
+    monkeypatch.setattr(db, "_engine_for_url", fake_engine_for_url)
 
     db.get_engine()
 
-    assert calls == [("postgresql+psycopg://user:pass@localhost/jobharbor", {})]
+    assert captured_urls == ["sqlite:///./from-settings.db"]
 
 
 def test_get_session_yields_and_closes_session(monkeypatch) -> None:
