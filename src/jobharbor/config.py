@@ -1,9 +1,16 @@
-from typing import Literal
+from __future__ import annotations
 
-from pydantic import field_validator
+import os
+from pathlib import Path
+from typing import Literal, Any, Mapping
+
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from jobharbor.config_schema import YamlConfig, load_yaml_config
+
+CONFIG_ENV_VAR = "JOBHARBOR_CONFIG_PATH"
+DEFAULT_CONFIG_PATH = Path("config.yaml")
 
 
 class Settings(BaseSettings):
@@ -20,6 +27,12 @@ class Settings(BaseSettings):
     smtp_user: str | None = None
     smtp_pass: str | None = None
     smtp_to: str | None = None
+
+    include_domain_keywords: tuple[str, ...] = ()
+    exclude_domain_keywords: tuple[str, ...] = ()
+    allowed_location_keywords: tuple[str, ...] = ()
+    allowed_work_auth: tuple[str, ...] = ()
+    connector_rollout: tuple[str, ...] = ()
 
     @field_validator(
         "pushover_api_token",
@@ -42,6 +55,47 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _apply_yaml_overrides(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
+        overrides = cls._yaml_overrides()
+        if not overrides:
+            return dict(values)
+
+        merged = dict(values)
+        for name, candidate in overrides.items():
+            if candidate is None or name in merged:
+                continue
+            merged[name] = candidate
+        return merged
+
+    @classmethod
+    def _yaml_overrides(cls) -> dict[str, Any]:
+        path = cls._resolve_yaml_path()
+        if path is None:
+            return {}
+        config = load_yaml_config(path)
+        return {
+            "scan_interval_hours": config.scan_interval_hours,
+            "include_domain_keywords": config.include_domain_keywords or (),
+            "exclude_domain_keywords": config.exclude_domain_keywords or (),
+            "allowed_location_keywords": config.allowed_location_keywords or (),
+            "allowed_work_auth": config.allowed_work_auth or (),
+            "connector_rollout": config.connector_rollout or (),
+        }
+
+    @classmethod
+    def _resolve_yaml_path(cls) -> Path | None:
+        explicit = os.getenv(CONFIG_ENV_VAR)
+        if explicit:
+            path = Path(explicit)
+            if not path.exists():
+                raise FileNotFoundError(f"yaml config not found at {path}")
+            return path
+        if DEFAULT_CONFIG_PATH.exists():
+            return DEFAULT_CONFIG_PATH
+        return None
 
 
 __all__ = ["Settings", "YamlConfig", "load_yaml_config"]

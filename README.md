@@ -26,6 +26,8 @@ docker compose up -d --build
 ```
 
 3. The container boots the scan scheduler on startup (runs one cycle immediately and every 6 hours) and the SQLite file stays under `./data/jobharbor.db` thanks to `DATABASE_URL=sqlite:////app/data/jobharbor.db`.
+4. Optionally set `JOBHARBOR_CONFIG_PATH=/path/to/config.yaml` (or drop `config.yaml` in the repo root) before launching so the agent picks up your YAML overrides for cadence, keywords, connectors, etc.
+5. Verify API health:
 4. Verify API health:
 
 ```bash

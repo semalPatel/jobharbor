@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlmodel import Session
 
+from jobharbor.config import Settings
 from jobharbor.db import get_engine, init_db
 from jobharbor.observability.metrics import MetricsRecorder
 from jobharbor.services.pipeline import PipelineCoordinator, STAGE_ORDER, StageHandler
@@ -17,10 +18,10 @@ def get_metrics_recorder() -> MetricsRecorder:
     return _METRICS
 
 
-def run_scan_cycle(*, database_url: str | None = None) -> None:
+def run_scan_cycle(*, settings: Settings) -> None:
     """Run one deterministic scan-to-notify pass using the configured pipeline."""
 
-    engine = get_engine(database_url)
+    engine = get_engine(settings.database_url)
     init_db(engine=engine)
 
     with Session(engine) as session:

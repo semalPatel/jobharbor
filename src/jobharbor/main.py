@@ -21,14 +21,18 @@ def _ensure_scheduler_started() -> None:
 
     init_db()
     settings = Settings()
+
+    def _scan_job() -> None:
+        run_scan_cycle(settings=settings)
+
     scheduler = bootstrap_scheduler(
-        scan_job=run_scan_cycle,
+        scan_job=_scan_job,
         interval_hours=settings.scan_interval_hours,
     )
     scheduler.start()
     _scheduler = scheduler
 
-    run_scan_cycle()
+    _scan_job()
 
 
 @app.on_event("shutdown")
