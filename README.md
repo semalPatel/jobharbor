@@ -44,6 +44,19 @@ python scripts/apply_config.py config.yaml
 
 If it succeeds, either run `export JOBHARBOR_CONFIG_PATH="$(pwd)/config.yaml"` in the shell that launches Docker Compose or copy the absolute path (e.g., `/full/path/config.yaml`) into `.env` so the service can discover it automatically.
 
+### Supported YAML values
+
+The helper currently recognizes these top-level keys; leave entries empty to fall back to the runtime defaults.
+
+| Key | Description | Notes |
+| --- | --- | --- |
+| `scan_interval_hours` | Scan cadence in hours. | Must be positive; defaults to `6`. |
+| `include_domain_keywords` | Keywords/phrases that must appear in the job text. | Matching is phrase-based and case-insensitive. |
+| `exclude_domain_keywords` | Keywords/phrases that reject a job if present. | Phrase-based matching. |
+| `allowed_location_keywords` | Location keywords that must appear. | Leave empty to skip location filtering. |
+| `allowed_work_auth` | Normalized work-authorization strings (e.g., `us_authorized`). | Spaces/punctuation become underscores. |
+| `connector_rollout` | Connector order used by discovery (`greenhouse`, `ashby`, `lever`). | Trim or reorder to experiment with sources. |
+
 3. Build and run with Docker Compose:
 
 ```bash
