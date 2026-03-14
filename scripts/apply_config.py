@@ -37,8 +37,12 @@ def _missing_fields(config: YamlConfig) -> list[str]:
 
 
 def _format_instructions(path: Path) -> Iterable[str]:
+    resolved = path.resolve()
     yield "Config valid."
-    yield f"Drop JOBHARBOR_CONFIG_PATH={path.resolve()} into your environment (or export it in .env) before starting the container."
+    yield (
+        f"Set JOBHARBOR_CONFIG_PATH={resolved} in your environment "
+        f"(or add JOBHARBOR_CONFIG_PATH={resolved} to `.env`) before starting the container."
+    )
     yield "If you leave the file named config.yaml in the repo root, the service will detect it automatically."
 
 
