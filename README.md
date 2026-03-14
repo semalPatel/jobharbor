@@ -25,10 +25,33 @@ python3 -m venv .venv
 docker compose up -d --build
 ```
 
-3. The container boots the scan scheduler on startup (runs one cycle immediately and every 6 hours) and the SQLite file stays under `./data/jobharbor.db` thanks to `DATABASE_URL=sqlite:////app/data/jobharbor.db`.
-4. Optionally set `JOBHARBOR_CONFIG_PATH=/path/to/config.yaml` (or drop `config.yaml` in the repo root) before launching so the agent picks up your YAML overrides for cadence, keywords, connectors, etc.
+3. Create a `config.yaml` with the values you care about and run the helper before `docker compose up`. A sample config looks like:
+
+```yaml
+scan_interval_hours: 6
+include_domain_keywords:
+  - android
+  - kotlin
+allowed_location_keywords:
+  - remote
+allowed_work_auth:
+  - us_authorized
+connector_rollout:
+  - greenhouse
+  - ashby
+  - lever
+```
+
+Run the validator as:
+
+```bash
+python scripts/apply_config.py config.yaml
+```
+
+If it succeeds, set `JOBHARBOR_CONFIG_PATH=$(pwd)/config.yaml` (or leave configuration in the repo root as `config.yaml`) so the service can discover it automatically.
+
+4. The container boots the scan scheduler on startup (runs one cycle immediately and every 6 hours) and the SQLite file stays under `./data/jobharbor.db` thanks to `DATABASE_URL=sqlite:////app/data/jobharbor.db`.
 5. Verify API health:
-4. Verify API health:
 
 ```bash
 curl -fsS http://localhost:8080/health
