@@ -3,6 +3,8 @@ from typing import Literal
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from jobharbor.config_schema import YamlConfig, load_yaml_config
+
 
 class Settings(BaseSettings):
     scan_interval_hours: int = 6
@@ -40,3 +42,6 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+
+__all__ = ["Settings", "YamlConfig", "load_yaml_config"]
