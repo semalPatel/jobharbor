@@ -5,7 +5,7 @@ from typing import Any
 from jobharbor.connectors.base import JobConnector, validate_jobs_payload
 from jobharbor.models import RunStatus
 
-ROLLOUT_SOURCE_ORDER: tuple[str, ...] = ("greenhouse", "ashby", "lever")
+ROLLOUT_SOURCE_ORDER: tuple[str, ...] = ("greenhouse", "ashby", "lever", "ycombinator")
 
 
 def order_connectors_for_rollout(

@@ -12,7 +12,7 @@ class ScoreStageWorker:
         if rollout:
             self._allowed_sources = {source.strip().lower() for source in rollout if source.strip()}
         else:
-            self._allowed_sources = {"greenhouse", "ashby", "lever"}
+            self._allowed_sources = {"greenhouse", "ashby", "lever", "ycombinator"}
 
     def run(self, context: dict[str, Any]) -> None:
         candidates = context.get("deduped_jobs")

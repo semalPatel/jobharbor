@@ -168,3 +168,23 @@ def test_discover_stage_uses_search_seed_urls_to_build_provider_targets() -> Non
 
         assert "greenhouse" in captured_targets
         assert "acme" in captured_targets["greenhouse"]
+
+
+def test_discover_stage_build_connectors_includes_ycombinator_when_requested() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_Settings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=lambda **_: [],
+        )
+
+        connectors = worker._build_connectors(  # noqa: SLF001 - covered behavior for rollout wiring
+            targets={},
+            rollout=("ycombinator",),
+        )
+
+        assert [source for source, _ in connectors] == ["ycombinator"]

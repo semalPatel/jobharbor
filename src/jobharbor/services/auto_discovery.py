@@ -32,8 +32,16 @@ DEFAULT_PROVIDER_TARGET_SEEDS: dict[str, tuple[str, ...]] = {
     "lever": (
         "jobgether",
         "freedompay",
+        "hhaexchange",
+        "nava",
+        "coinbase",
     ),
-    "ashby": (),
+    "ashby": (
+        "notion",
+        "openai",
+        "clay",
+        "linear",
+    ),
 }
 
 

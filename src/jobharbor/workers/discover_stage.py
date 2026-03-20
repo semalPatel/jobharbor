@@ -11,6 +11,7 @@ from jobharbor.connectors.base import JobConnector
 from jobharbor.connectors.greenhouse import GreenhouseConnector
 from jobharbor.connectors.http_client import HttpClient
 from jobharbor.connectors.lever import LeverConnector
+from jobharbor.connectors.ycombinator import YCombinatorConnector
 from jobharbor.models import Job, JobStatus
 from jobharbor.services.auto_discovery import (
     DEFAULT_FEED_URLS,
@@ -126,7 +127,7 @@ class DiscoverStageWorker:
         targets: Mapping[str, set[str]],
         rollout: Sequence[str],
     ) -> list[tuple[str, JobConnector]]:
-        requested = set(rollout) if rollout else {"greenhouse", "ashby", "lever"}
+        requested = set(rollout) if rollout else {"greenhouse", "ashby", "lever", "ycombinator"}
         http_client = HttpClient(request=_default_request, timeout=10.0)
         connectors: list[tuple[str, JobConnector]] = []
 
@@ -139,6 +140,8 @@ class DiscoverStageWorker:
         if "lever" in requested:
             for slug in sorted(targets.get("lever", set())):
                 connectors.append(("lever", LeverConnector(http_client=http_client, company_slug=slug)))
+        if "ycombinator" in requested:
+            connectors.append(("ycombinator", YCombinatorConnector()))
 
         return connectors
 
