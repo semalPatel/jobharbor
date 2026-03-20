@@ -11,11 +11,14 @@ from jobharbor.connectors.base import JobConnector
 from jobharbor.connectors.greenhouse import GreenhouseConnector
 from jobharbor.connectors.http_client import HttpClient
 from jobharbor.connectors.lever import LeverConnector
+from jobharbor.connectors.smartrecruiters import SmartRecruitersConnector
 from jobharbor.connectors.ycombinator import YCombinatorConnector
 from jobharbor.models import Job, JobStatus
 from jobharbor.services.auto_discovery import (
+    DEFAULT_MOBILE_COMPANY_CAREER_URLS,
     DEFAULT_FEED_URLS,
     default_provider_targets,
+    discover_jobs_from_company_career_sites,
     discover_jobs_from_public_feeds,
     discover_provider_urls_from_search,
     expand_feed_jobs_with_provider_urls,
@@ -65,6 +68,8 @@ class DiscoverStageWorker:
         settings,
         feed_urls: Sequence[str] = DEFAULT_FEED_URLS,
         feed_fetcher: Callable[..., list[dict[str, str]]] = discover_jobs_from_public_feeds,
+        company_site_urls: Sequence[str] = DEFAULT_MOBILE_COMPANY_CAREER_URLS,
+        company_site_fetcher: Callable[..., list[dict[str, str]]] = discover_jobs_from_company_career_sites,
         search_fetcher: Callable[..., list[dict[str, str]]] = discover_provider_urls_from_search,
         connector_builder: Callable[..., list[tuple[str, JobConnector]]] | None = None,
     ) -> None:
@@ -72,16 +77,19 @@ class DiscoverStageWorker:
         self._settings = settings
         self._feed_urls = tuple(feed_urls)
         self._feed_fetcher = feed_fetcher
+        self._company_site_urls = tuple(company_site_urls)
+        self._company_site_fetcher = company_site_fetcher
         self._search_fetcher = search_fetcher
         self._connector_builder = connector_builder or self._build_connectors
 
     def run(self, context: dict[str, object]) -> None:
         feed_jobs = self._feed_fetcher(feed_urls=self._feed_urls)
-        provider_jobs_from_pages = expand_feed_jobs_with_provider_urls(feed_jobs)
+        company_seed_jobs = self._company_site_fetcher(career_urls=self._company_site_urls)
+        provider_jobs_from_pages = expand_feed_jobs_with_provider_urls(feed_jobs + company_seed_jobs)
         provider_jobs_from_search = self._search_fetcher(
             include_keywords=getattr(self._settings, "include_domain_keywords", ()),
         )
-        merged_seed_jobs = feed_jobs + provider_jobs_from_pages + provider_jobs_from_search
+        merged_seed_jobs = feed_jobs + company_seed_jobs + provider_jobs_from_pages + provider_jobs_from_search
         targets = extract_provider_targets(job.get("url", "") for job in merged_seed_jobs)
         targets = self._merge_targets(targets, default_provider_targets())
         rollout = getattr(self._settings, "connector_rollout", ()) or ()
@@ -127,7 +135,7 @@ class DiscoverStageWorker:
         targets: Mapping[str, set[str]],
         rollout: Sequence[str],
     ) -> list[tuple[str, JobConnector]]:
-        requested = set(rollout) if rollout else {"greenhouse", "ashby", "lever", "ycombinator"}
+        requested = set(rollout) if rollout else {"greenhouse", "ashby", "lever", "smartrecruiters", "ycombinator"}
         http_client = HttpClient(request=_default_request, timeout=10.0)
         connectors: list[tuple[str, JobConnector]] = []
 
@@ -140,6 +148,11 @@ class DiscoverStageWorker:
         if "lever" in requested:
             for slug in sorted(targets.get("lever", set())):
                 connectors.append(("lever", LeverConnector(http_client=http_client, company_slug=slug)))
+        if "smartrecruiters" in requested:
+            for slug in sorted(targets.get("smartrecruiters", set())):
+                connectors.append(
+                    ("smartrecruiters", SmartRecruitersConnector(http_client=http_client, company_slug=slug))
+                )
         if "ycombinator" in requested:
             connectors.append(("ycombinator", YCombinatorConnector()))
 

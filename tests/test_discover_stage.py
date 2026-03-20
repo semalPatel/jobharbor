@@ -188,3 +188,59 @@ def test_discover_stage_build_connectors_includes_ycombinator_when_requested() -
         )
 
         assert [source for source, _ in connectors] == ["ycombinator"]
+
+
+def test_discover_stage_build_connectors_includes_smartrecruiters_when_requested() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_Settings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=lambda **_: [],
+        )
+
+        connectors = worker._build_connectors(  # noqa: SLF001 - covered behavior for rollout wiring
+            targets={"smartrecruiters": {"acme"}},
+            rollout=("smartrecruiters",),
+        )
+
+        assert [source for source, _ in connectors] == ["smartrecruiters"]
+
+
+def test_discover_stage_uses_company_site_seed_urls_for_targets() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    captured_targets: dict[str, set[str]] = {}
+
+    def _connector_builder(*, targets, rollout):
+        del rollout
+        captured_targets.update({k: set(v) for k, v in targets.items()})
+        return []
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_Settings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=lambda **_: [],
+            company_site_fetcher=lambda **_: [
+                {
+                    "source": "company_site",
+                    "external_id": "company-1",
+                    "title": "Mobile",
+                    "company": "Example",
+                    "location": "",
+                    "url": "https://jobs.lever.co/acme/mobile-engineer",
+                    "posted_at": "",
+                    "description": "mobile",
+                }
+            ],
+            connector_builder=_connector_builder,
+        )
+        worker.run({})
+
+    assert "lever" in captured_targets
+    assert "acme" in captured_targets["lever"]

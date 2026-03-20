@@ -13,15 +13,24 @@ DEFAULT_FEED_URLS: tuple[str, ...] = (
     "https://weworkremotely.com/remote-jobs.rss",
     "https://hnrss.org/jobs",
 )
+DEFAULT_MOBILE_COMPANY_CAREER_URLS: tuple[str, ...] = (
+    "https://careers.doordash.com/",
+    "https://careers.uber.com/",
+    "https://careers.airbnb.com/",
+    "https://careers.stripe.com/",
+    "https://careers.coinbase.com/",
+    "https://jobs.smartrecruiters.com/",
+)
 DUCKDUCKGO_HTML_SEARCH_URL = "https://duckduckgo.com/html/"
 PROVIDER_URL_PATTERN = re.compile(
-    r"https?://(?:boards\.greenhouse\.io|job-boards\.greenhouse\.io|jobs\.ashbyhq\.com|jobs\.lever\.co)/[^\"'\s<>()]+",
+    r"https?://(?:boards\.greenhouse\.io|job-boards\.greenhouse\.io|jobs\.ashbyhq\.com|jobs\.lever\.co|[a-z0-9.-]*myworkdayjobs\.com|jobs\.smartrecruiters\.com)/[^\"'\s<>()]+",
     flags=re.IGNORECASE,
 )
 ENCODED_PROVIDER_URL_PATTERN = re.compile(
-    r"https?%3A%2F%2F(?:boards\.greenhouse\.io|job-boards\.greenhouse\.io|jobs\.ashbyhq\.com|jobs\.lever\.co)%2F[^\"'\s<>()]+",
+    r"https?%3A%2F%2F(?:boards\.greenhouse\.io|job-boards\.greenhouse\.io|jobs\.ashbyhq\.com|jobs\.lever\.co|[a-z0-9.-]*myworkdayjobs\.com|jobs\.smartrecruiters\.com)%2F[^\"'\s<>()]+",
     flags=re.IGNORECASE,
 )
+HREF_PATTERN = re.compile(r"""href=["']([^"'#]+)["']""", flags=re.IGNORECASE)
 DEFAULT_PROVIDER_TARGET_SEEDS: dict[str, tuple[str, ...]] = {
     # Seed providers so discovery can run even when public feed/search scraping yields no provider URLs.
     "greenhouse": (
@@ -41,6 +50,11 @@ DEFAULT_PROVIDER_TARGET_SEEDS: dict[str, tuple[str, ...]] = {
         "openai",
         "clay",
         "linear",
+    ),
+    "smartrecruiters": (
+        "smartrecruiters",
+        "uber",
+        "doordash",
     ),
 }
 
@@ -63,11 +77,52 @@ def discover_jobs_from_public_feeds(
     return discovered
 
 
+def discover_jobs_from_company_career_sites(
+    career_urls: Iterable[str] = DEFAULT_MOBILE_COMPANY_CAREER_URLS,
+    *,
+    fetch_text: Callable[[str], str] | None = None,
+    max_job_links_per_site: int = 25,
+) -> list[dict[str, str]]:
+    fetcher = fetch_text or _default_fetch_text
+    discovered: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    for career_url in career_urls:
+        base_url = (career_url or "").strip()
+        if not base_url:
+            continue
+        try:
+            html = fetcher(base_url)
+        except Exception:
+            continue
+
+        links = _extract_candidate_job_urls(base_url=base_url, html=html)
+        for link in links[:max_job_links_per_site]:
+            if link in seen:
+                continue
+            seen.add(link)
+            discovered.append(
+                {
+                    "source": "company_site",
+                    "external_id": _stable_id(link),
+                    "title": "",
+                    "company": "",
+                    "location": "",
+                    "url": link,
+                    "posted_at": "",
+                    "description": "company_site:mobile_discovery",
+                }
+            )
+
+    return discovered
+
+
 def extract_provider_targets(urls: Iterable[str]) -> dict[str, set[str]]:
     targets: dict[str, set[str]] = {
         "greenhouse": set(),
         "ashby": set(),
         "lever": set(),
+        "smartrecruiters": set(),
     }
     for url in urls:
         parsed = urllib_parse.urlparse((url or "").strip())
@@ -83,6 +138,8 @@ def extract_provider_targets(urls: Iterable[str]) -> dict[str, set[str]]:
             targets["ashby"].add(slug)
         elif "jobs.lever.co" in host:
             targets["lever"].add(slug)
+        elif "jobs.smartrecruiters.com" in host:
+            targets["smartrecruiters"].add(slug)
 
     return {provider: slugs for provider, slugs in targets.items() if slugs}
 
@@ -248,6 +305,35 @@ def _extract_provider_urls_from_html(html: str) -> list[str]:
     return deduped
 
 
+def _extract_candidate_job_urls(*, base_url: str, html: str) -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    for raw_href in HREF_PATTERN.findall(html or ""):
+        absolute = urllib_parse.urljoin(base_url, raw_href.strip())
+        parsed = urllib_parse.urlparse(absolute)
+        if parsed.scheme not in {"http", "https"}:
+            continue
+        normalized = urllib_parse.urlunparse(
+            (
+                parsed.scheme.lower(),
+                parsed.netloc.lower(),
+                parsed.path,
+                "",
+                parsed.query,
+                "",
+            )
+        )
+        text = normalized.lower()
+        if _is_provider_url(normalized) or _looks_like_mobile_job_link(text):
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            candidates.append(normalized)
+
+    return candidates
+
+
 def _extract_provider_urls_from_search_html(html: str) -> list[str]:
     candidates: list[str] = []
     candidates.extend(_extract_provider_urls_from_html(html))
@@ -273,7 +359,14 @@ def _is_provider_url(url: str) -> bool:
     host = urllib_parse.urlparse(url).netloc.lower()
     return any(
         domain in host
-        for domain in ("boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.ashbyhq.com", "jobs.lever.co")
+        for domain in (
+            "boards.greenhouse.io",
+            "job-boards.greenhouse.io",
+            "jobs.ashbyhq.com",
+            "jobs.lever.co",
+            "myworkdayjobs.com",
+            "jobs.smartrecruiters.com",
+        )
     )
 
 
@@ -285,6 +378,10 @@ def _source_from_url(url: str) -> str:
         return "ashby"
     if "jobs.lever.co" in host:
         return "lever"
+    if "myworkdayjobs.com" in host:
+        return "workday"
+    if "jobs.smartrecruiters.com" in host:
+        return "smartrecruiters"
     return ""
 
 
@@ -298,6 +395,8 @@ def _build_provider_search_queries(include_keywords: Iterable[str]) -> list[str]
         "boards.greenhouse.io",
         "jobs.lever.co",
         "jobs.ashbyhq.com",
+        "jobs.smartrecruiters.com",
+        "myworkdayjobs.com",
     )
     queries: list[str] = []
     for domain in domains:
@@ -338,3 +437,10 @@ def _normalize_provider_url(url: str) -> str:
         )
     )
     return normalized
+
+
+def _looks_like_mobile_job_link(text: str) -> bool:
+    if "job" not in text and "career" not in text and "position" not in text:
+        return False
+    keywords = ("mobile", "android", "ios", "swift", "kotlin", "react-native", "flutter")
+    return any(keyword in text for keyword in keywords)

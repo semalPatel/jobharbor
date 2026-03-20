@@ -1,5 +1,7 @@
 from jobharbor.services.auto_discovery import (
+    DEFAULT_MOBILE_COMPANY_CAREER_URLS,
     default_provider_targets,
+    discover_jobs_from_company_career_sites,
     discover_jobs_from_public_feeds,
     discover_provider_urls_from_search,
     expand_feed_jobs_with_provider_urls,
@@ -40,6 +42,7 @@ def test_extract_provider_targets_includes_known_providers_and_ignores_generic_u
             "https://boards.greenhouse.io/acme/jobs/123",
             "https://jobs.ashbyhq.com/zenith/abc",
             "https://jobs.lever.co/halcyon/xyz",
+            "https://jobs.smartrecruiters.com/acme/123-mobile-engineer",
             "https://example.com/jobs/anything",
         ]
     )
@@ -48,6 +51,7 @@ def test_extract_provider_targets_includes_known_providers_and_ignores_generic_u
         "greenhouse": {"acme"},
         "ashby": {"zenith"},
         "lever": {"halcyon"},
+        "smartrecruiters": {"acme"},
     }
 
 
@@ -132,3 +136,61 @@ def test_default_provider_targets_returns_seeded_provider_tokens() -> None:
     assert "greenhouse" in targets
     assert "nearsure" in targets["greenhouse"]
     assert "lever" in targets
+
+
+def test_discover_jobs_from_company_career_sites_extracts_job_links() -> None:
+    html = """
+    <html>
+      <a href="/careers/mobile-engineer">Mobile Engineer</a>
+      <a href="https://jobs.smartrecruiters.com/acme/ios-engineer">Apply</a>
+      <a href="https://example.com/about">About</a>
+    </html>
+    """
+
+    def _fetch(_: str) -> str:
+        return html
+
+    jobs = discover_jobs_from_company_career_sites(
+        ["https://example.com/careers"],
+        fetch_text=_fetch,
+        max_job_links_per_site=10,
+    )
+
+    urls = {job["url"] for job in jobs}
+    assert "https://example.com/careers/mobile-engineer" in urls
+    assert "https://jobs.smartrecruiters.com/acme/ios-engineer" in urls
+
+
+def test_expand_feed_jobs_with_provider_urls_extracts_workday_and_smartrecruiters() -> None:
+    jobs = [
+        {
+            "source": "company_site",
+            "external_id": "seed-1",
+            "title": "Mobile Engineer",
+            "company": "Acme",
+            "location": "SF Bay Area",
+            "url": "https://example.com/careers/mobile",
+            "posted_at": "",
+            "description": "mobile ios",
+        }
+    ]
+
+    def _fetch(_: str) -> str:
+        return """
+        <html>
+          <a href="https://acme.wd1.myworkdayjobs.com/en-US/Jobs/job/San-Francisco/Mobile-Engineer_123">Workday</a>
+          <a href="https://jobs.smartrecruiters.com/acme/Mobile-Engineer">Smart</a>
+        </html>
+        """
+
+    expanded = expand_feed_jobs_with_provider_urls(jobs, fetch_text=_fetch, max_pages=10)
+    pairs = {(item["source"], item["url"]) for item in expanded}
+    assert (
+        "workday",
+        "https://acme.wd1.myworkdayjobs.com/en-US/Jobs/job/San-Francisco/Mobile-Engineer_123",
+    ) in pairs
+    assert ("smartrecruiters", "https://jobs.smartrecruiters.com/acme/Mobile-Engineer") in pairs
+
+
+def test_default_mobile_company_career_urls_contains_mobile_first_companies() -> None:
+    assert "https://careers.doordash.com/" in DEFAULT_MOBILE_COMPANY_CAREER_URLS

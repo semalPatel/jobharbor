@@ -8,11 +8,21 @@ from jobharbor.services.filters import HardFilterPolicy, evaluate_hard_filters
 class ScoreStageWorker:
     def __init__(self, *, settings) -> None:
         self._settings = settings
+        always_allowed_sources = {"workday", "smartrecruiters"}
         rollout = tuple(getattr(settings, "connector_rollout", ()) or ())
         if rollout:
-            self._allowed_sources = {source.strip().lower() for source in rollout if source.strip()}
+            self._allowed_sources = (
+                {source.strip().lower() for source in rollout if source.strip()} | always_allowed_sources
+            )
         else:
-            self._allowed_sources = {"greenhouse", "ashby", "lever", "ycombinator"}
+            self._allowed_sources = {
+                "greenhouse",
+                "ashby",
+                "lever",
+                "ycombinator",
+                "workday",
+                "smartrecruiters",
+            }
 
     def run(self, context: dict[str, Any]) -> None:
         candidates = context.get("deduped_jobs")
