@@ -9,7 +9,11 @@ services:
       - .env
     environment:
       DATABASE_URL: sqlite:////app/data/jobharbor.db
+      PYTHONPATH: /app/src
+      JOBHARBOR_CONFIG_PATH: /app/config.yaml
+      JOBHARBOR_PROFILE_PATH: /app/profile.yaml
     ports:
       - "8080:8080"
     volumes:
+      - ./:/app
       - ./data:/app/data

@@ -1,0 +1,170 @@
+from collections.abc import Iterator
+
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from jobharbor.models import Job
+from jobharbor.workers.discover_stage import DiscoverStageWorker
+
+
+class _FakeConnector:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def fetch_jobs(self):
+        return list(self._rows)
+
+
+class _Settings:
+    connector_rollout: tuple[str, ...] = ()
+
+
+def test_discover_stage_persists_feed_jobs_with_non_provider_urls() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    def _feed_fetcher(*, feed_urls):
+        assert feed_urls
+        return [
+            {
+                "source": "feed",
+                "external_id": "feed-1",
+                "title": "Role A",
+                "company": "X",
+                "location": "Remote",
+                "url": "https://example.com/jobs/1",
+                "posted_at": "2026-03-14",
+            }
+        ]
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_Settings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=_feed_fetcher,
+            connector_builder=lambda **_: [],
+        )
+
+        worker.run({})
+
+        jobs = list(session.exec(select(Job)).all())
+        assert len(jobs) == 1
+        assert jobs[0].source == "feed"
+        assert jobs[0].external_id == "feed-1"
+
+
+def test_discover_stage_dedupes_existing_jobs() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add(Job(source="feed", external_id="feed-1"))
+        session.commit()
+
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_Settings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=lambda **_: [
+                {
+                    "source": "feed",
+                    "external_id": "feed-1",
+                    "title": "Role A",
+                    "company": "X",
+                    "location": "Remote",
+                    "url": "https://example.com/jobs/1",
+                    "posted_at": "2026-03-14",
+                }
+            ],
+            connector_builder=lambda **_: [],
+        )
+
+        worker.run({})
+
+        jobs = list(session.exec(select(Job)).all())
+        assert len(jobs) == 1
+
+
+def test_discover_stage_adds_provider_connector_results() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_Settings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=lambda **_: [
+                {
+                    "source": "feed",
+                    "external_id": "feed-1",
+                    "title": "Role A",
+                    "company": "X",
+                    "location": "Remote",
+                    "url": "https://boards.greenhouse.io/acme/jobs/1",
+                    "posted_at": "2026-03-14",
+                }
+            ],
+            connector_builder=lambda **_: [
+                (
+                    "greenhouse",
+                    _FakeConnector(
+                        [
+                            {
+                                "external_id": "gh-1",
+                                "title": "Role G",
+                                "company": "G",
+                                "location": "Remote",
+                                "url": "https://boards.greenhouse.io/acme/jobs/2",
+                                "posted_at": "2026-03-14",
+                            }
+                        ]
+                    ),
+                )
+            ],
+        )
+
+        worker.run({})
+
+        jobs = list(session.exec(select(Job).order_by(Job.source, Job.external_id)).all())
+        assert [(j.source, j.external_id) for j in jobs] == [
+            ("feed", "feed-1"),
+            ("greenhouse", "gh-1"),
+        ]
+
+
+def test_discover_stage_uses_search_seed_urls_to_build_provider_targets() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    captured_targets: dict[str, set[str]] = {}
+
+    def _connector_builder(*, targets, rollout):
+        del rollout
+        captured_targets.update({k: set(v) for k, v in targets.items()})
+        return []
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_Settings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=lambda **_: [],
+            search_fetcher=lambda **_: [
+                {
+                    "source": "greenhouse",
+                    "external_id": "seed-1",
+                    "title": "Android Engineer",
+                    "company": "",
+                    "location": "Remote",
+                    "url": "https://boards.greenhouse.io/acme/jobs/1",
+                    "posted_at": "",
+                    "description": "",
+                }
+            ],
+            connector_builder=_connector_builder,
+        )
+
+        worker.run({})
+
+        assert "greenhouse" in captured_targets
+        assert "acme" in captured_targets["greenhouse"]

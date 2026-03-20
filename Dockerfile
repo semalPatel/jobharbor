@@ -6,6 +6,8 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
+COPY profile.yaml ./profile.yaml
+COPY config.yaml ./config.yaml
 COPY src ./src
 
 RUN pip install --no-cache-dir --upgrade pip \
