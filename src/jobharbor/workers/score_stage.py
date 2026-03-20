@@ -33,7 +33,7 @@ class ScoreStageWorker:
         base_policy = HardFilterPolicy(
             include_domain_keywords=set(self._settings.include_domain_keywords),
             exclude_domain_keywords=set(self._settings.exclude_domain_keywords),
-            allowed_location_keywords=set(self._settings.allowed_location_keywords),
+            allowed_location_keywords=self._expand_allowed_locations(self._settings.allowed_location_keywords),
             allowed_work_auth=set(self._settings.allowed_work_auth),
         )
 
@@ -62,3 +62,12 @@ class ScoreStageWorker:
                 eligible.append(item)
 
         context["eligible_jobs"] = eligible
+
+    def _expand_allowed_locations(self, raw_locations: Any) -> set[str]:
+        if not isinstance(raw_locations, (list, tuple, set)):
+            return set()
+
+        normalized = {str(location).strip().lower() for location in raw_locations if str(location).strip()}
+        if "remote" in normalized:
+            normalized.update({"united states", "us", "usa", "u s", "u.s."})
+        return normalized

@@ -25,6 +25,7 @@ def test_smartrecruiters_fetch_jobs_normalizes_required_fields_and_ordering() ->
                     "ref": "https://jobs.smartrecruiters.com/acme/7440002-android-engineer",
                     "releasedDate": "2026-03-18T10:00:00Z",
                     "company": {"name": "Acme"},
+                    "function": "Engineering",
                 },
                 {
                     "id": "7440001",
@@ -33,6 +34,7 @@ def test_smartrecruiters_fetch_jobs_normalizes_required_fields_and_ordering() ->
                     "ref": "https://jobs.smartrecruiters.com/acme/7440001-ios-engineer",
                     "releasedDate": "2026-03-17T10:00:00Z",
                     "company": {"name": "Acme"},
+                    "department": "Mobile",
                 },
             ]
         }
@@ -49,6 +51,7 @@ def test_smartrecruiters_fetch_jobs_normalizes_required_fields_and_ordering() ->
         "location": "Remote, United States",
         "url": "https://jobs.smartrecruiters.com/acme/7440001-ios-engineer",
         "posted_at": "2026-03-17T10:00:00Z",
+        "description": "Mobile",
     }
     assert client.calls == [
         (
@@ -64,4 +67,3 @@ def test_smartrecruiters_fetch_jobs_handles_invalid_payload_shapes() -> None:
 
     jobs = connector.fetch_jobs()
     assert jobs == []
-

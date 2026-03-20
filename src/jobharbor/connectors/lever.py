@@ -46,6 +46,14 @@ class LeverConnector(JobConnector):
 
     def _normalize_job(self, row: Mapping[str, Any]) -> dict[str, str]:
         categories = row.get("categories")
+        description = self._as_text(row.get("descriptionPlain") or row.get("description"))
+        category_bits = self._join_parts(
+            self._as_text(self._nested_value(categories, "team")),
+            self._as_text(self._nested_value(categories, "department")),
+            self._as_text(self._nested_value(categories, "commitment")),
+            self._as_text(self._nested_value(categories, "allLocations")),
+        )
+        combined_description = self._join_parts(description, category_bits)
         return {
             "external_id": self._as_text(row.get("id")),
             "title": self._as_text(row.get("text") or row.get("title")),
@@ -53,6 +61,7 @@ class LeverConnector(JobConnector):
             "location": self._as_text(self._nested_value(categories, "location")),
             "url": self._as_text(row.get("hostedUrl") or row.get("applyUrl")),
             "posted_at": self._as_text(row.get("createdAt")),
+            "description": combined_description,
         }
 
     def _nested_value(self, value: Any, key: str) -> Any:
@@ -64,3 +73,7 @@ class LeverConnector(JobConnector):
         if value is None:
             return ""
         return str(value).strip()
+
+    def _join_parts(self, *parts: str) -> str:
+        filtered = [part for part in parts if part.strip()]
+        return " ".join(filtered)

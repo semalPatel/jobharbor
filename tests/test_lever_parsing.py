@@ -21,7 +21,7 @@ def test_lever_fetch_jobs_normalizes_required_fields_and_ordering() -> None:
                 {
                     "id": "lever-2",
                     "text": "Backend Engineer",
-                    "categories": {"location": "Remote"},
+                    "categories": {"location": "Remote", "team": "Platform"},
                     "hostedUrl": "https://jobs.lever.co/acme/lever-2",
                     "createdAt": 1710172800000,
                     "company": "Acme",
@@ -33,6 +33,7 @@ def test_lever_fetch_jobs_normalizes_required_fields_and_ordering() -> None:
                     "hostedUrl": "https://jobs.lever.co/acme/lever-1",
                     "createdAt": 1710086400000,
                     "company": "Acme",
+                    "descriptionPlain": "Build mobile features",
                 },
             ]
         }
@@ -50,6 +51,7 @@ def test_lever_fetch_jobs_normalizes_required_fields_and_ordering() -> None:
         "location": "San Francisco, CA",
         "url": "https://jobs.lever.co/acme/lever-1",
         "posted_at": "1710086400000",
+        "description": "Build mobile features",
     }
     assert client.calls == [
         (

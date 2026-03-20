@@ -23,6 +23,7 @@ from jobharbor.services.auto_discovery import (
     discover_provider_urls_from_search,
     expand_feed_jobs_with_provider_urls,
     extract_provider_targets,
+    prefilter_jobs_for_mobile_focus,
 )
 from jobharbor.services.dedupe import job_exists
 from jobharbor.services.discovery_service import DiscoveryService
@@ -98,6 +99,10 @@ class DiscoverStageWorker:
         provider_jobs: list[dict[str, object]] = []
         if connectors:
             provider_jobs, _ = DiscoveryService(connectors=connectors).discover()
+            provider_jobs = prefilter_jobs_for_mobile_focus(
+                provider_jobs,
+                include_keywords=getattr(self._settings, "include_domain_keywords", ()),
+            )
 
         discovered_jobs = merged_seed_jobs + provider_jobs
         inserted = self._persist_jobs(discovered_jobs)

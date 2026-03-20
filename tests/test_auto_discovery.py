@@ -6,6 +6,7 @@ from jobharbor.services.auto_discovery import (
     discover_provider_urls_from_search,
     expand_feed_jobs_with_provider_urls,
     extract_provider_targets,
+    prefilter_jobs_for_mobile_focus,
 )
 
 
@@ -194,3 +195,14 @@ def test_expand_feed_jobs_with_provider_urls_extracts_workday_and_smartrecruiter
 
 def test_default_mobile_company_career_urls_contains_mobile_first_companies() -> None:
     assert "https://careers.doordash.com/" in DEFAULT_MOBILE_COMPANY_CAREER_URLS
+
+
+def test_prefilter_jobs_for_mobile_focus_keeps_mobile_and_drops_irrelevant_roles() -> None:
+    jobs = [
+        {"title": "Senior Mobile Engineer", "description": "ios swift", "source": "lever"},
+        {"title": "Finance Manager", "description": "accounting", "source": "lever"},
+    ]
+
+    filtered = prefilter_jobs_for_mobile_focus(jobs, include_keywords=("mobile", "ios"))
+    assert len(filtered) == 1
+    assert filtered[0]["title"] == "Senior Mobile Engineer"

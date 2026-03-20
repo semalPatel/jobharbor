@@ -240,6 +240,37 @@ def default_provider_targets() -> dict[str, set[str]]:
     }
 
 
+def prefilter_jobs_for_mobile_focus(
+    jobs: Iterable[Mapping[str, object]],
+    *,
+    include_keywords: Iterable[str] = (),
+) -> list[dict[str, object]]:
+    terms = {term.strip().lower() for term in include_keywords if isinstance(term, str) and term.strip()}
+    if not terms:
+        return [dict(job) for job in jobs if isinstance(job, Mapping)]
+
+    fallback_terms = {"mobile", "android", "ios", "swift", "kotlin", "react native", "flutter"}
+    terms |= fallback_terms
+
+    filtered: list[dict[str, object]] = []
+    for job in jobs:
+        if not isinstance(job, Mapping):
+            continue
+        blob = _join_text(
+            job.get("title"),
+            job.get("description"),
+            job.get("team"),
+            job.get("department"),
+            job.get("function"),
+            job.get("location"),
+        )
+        text = blob.lower()
+        if any(term in text for term in terms):
+            filtered.append(dict(job))
+
+    return filtered
+
+
 def _default_fetch_text(url: str) -> str:
     request = urllib_request.Request(
         url,
@@ -444,3 +475,14 @@ def _looks_like_mobile_job_link(text: str) -> bool:
         return False
     keywords = ("mobile", "android", "ios", "swift", "kotlin", "react-native", "flutter")
     return any(keyword in text for keyword in keywords)
+
+
+def _join_text(*values: object) -> str:
+    parts: list[str] = []
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            parts.append(text)
+    return " ".join(parts)

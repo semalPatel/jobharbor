@@ -4,7 +4,7 @@ from jobharbor.workers.score_stage import ScoreStageWorker
 class _Settings:
     include_domain_keywords = ("mobile",)
     exclude_domain_keywords = ()
-    allowed_location_keywords = ()
+    allowed_location_keywords = ("remote",)
     allowed_work_auth = ()
     connector_rollout = ("greenhouse", "ashby", "lever", "ycombinator")
 
@@ -17,7 +17,7 @@ def test_score_stage_allows_workday_and_smartrecruiters_with_explicit_rollout() 
                 "source": "workday",
                 "title": "Mobile Engineer",
                 "description": "mobile apps",
-                "location": "San Francisco",
+                "location": "Remote",
                 "work_auth": "",
             },
             {
@@ -35,3 +35,22 @@ def test_score_stage_allows_workday_and_smartrecruiters_with_explicit_rollout() 
     assert isinstance(eligible, list)
     assert len(eligible) == 2
 
+
+def test_score_stage_treats_us_location_as_allowed_when_remote_is_enabled() -> None:
+    worker = ScoreStageWorker(settings=_Settings())
+    context = {
+        "deduped_jobs": [
+            {
+                "source": "lever",
+                "title": "Mobile Engineer",
+                "description": "ios and android",
+                "location": "United States",
+                "work_auth": "",
+            }
+        ]
+    }
+
+    worker.run(context)
+    eligible = context.get("eligible_jobs", [])
+    assert isinstance(eligible, list)
+    assert len(eligible) == 1

@@ -42,6 +42,14 @@ class SmartRecruitersConnector(JobConnector):
         return validate_jobs_payload(postings)
 
     def _normalize_job(self, row: Mapping[str, Any]) -> dict[str, str]:
+        description = self._join_parts(
+            self._as_text(row.get("industry")),
+            self._as_text(row.get("department")),
+            self._as_text(row.get("function")),
+            self._as_text(row.get("typeOfEmployment")),
+            self._as_text(row.get("experienceLevel")),
+            self._flatten_custom_fields(row.get("customField")),
+        )
         return {
             "external_id": self._as_text(row.get("id") or row.get("uuid")),
             "title": self._as_text(row.get("name")),
@@ -49,6 +57,7 @@ class SmartRecruitersConnector(JobConnector):
             "location": self._normalize_location(row.get("location")),
             "url": self._as_text(row.get("ref")),
             "posted_at": self._as_text(row.get("releasedDate")),
+            "description": description,
         }
 
     def _normalize_location(self, location: Any) -> str:
@@ -70,3 +79,13 @@ class SmartRecruitersConnector(JobConnector):
             return ""
         return str(value).strip()
 
+    def _flatten_custom_fields(self, value: Any) -> str:
+        if isinstance(value, Mapping):
+            return self._join_parts(*(self._as_text(v) for v in value.values()))
+        if isinstance(value, (list, tuple)):
+            return self._join_parts(*(self._as_text(v) for v in value))
+        return self._as_text(value)
+
+    def _join_parts(self, *parts: str) -> str:
+        filtered = [part for part in parts if part.strip()]
+        return " ".join(filtered)
