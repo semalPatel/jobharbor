@@ -6,6 +6,7 @@ from jobharbor.config import Settings
 ENV_KEYS = [
     "SCAN_INTERVAL_HOURS",
     "DATABASE_URL",
+    "JOBHARBOR_HOME",
     "NOTIFICATION_PROVIDER",
     "NOTIFICATION_FALLBACK",
     "PUSHOVER_API_TOKEN",

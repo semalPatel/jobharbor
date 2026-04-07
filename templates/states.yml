@@ -1,0 +1,11 @@
+tracker_statuses:
+  - Drafting
+  - Evaluated
+  - Applied
+  - Responded
+  - Interview
+  - Offer
+  - Rejected
+  - Discarded
+  - SKIP
+  - Failed

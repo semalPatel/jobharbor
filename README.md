@@ -16,6 +16,28 @@ python3 -m venv .venv
 ./scripts/verify_mvp.sh
 ```
 
+## Workspace Bootstrap
+
+Jobharbor keeps user-editable career-ops files under `JOBHARBOR_HOME`. If the
+environment variable is not set, the default workspace is `./workspace`.
+
+Create the workspace with:
+
+```bash
+jobharbor bootstrap
+```
+
+For local testing, point bootstrap at an explicit directory:
+
+```bash
+jobharbor bootstrap --home /path/to/jobharbor-workspace
+```
+
+Bootstrap creates missing directories and files such as `cv.md`,
+`config/profile.yml`, `portals.yml`, `data/applications.md`,
+`data/pipeline.md`, `data/scan-history.tsv`, `reports/`, `output/`, `jds/`,
+`prompts/`, and `templates/`. Existing files are preserved.
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.

@@ -1,0 +1,40 @@
+title_filter:
+  positive:
+    - "AI"
+    - "LLM"
+  negative:
+    - "Junior"
+    - "Intern"
+  seniority_boost:
+    - "Senior"
+
+search_queries:
+  - name: Ashby - AI PM
+    query: 'site:jobs.ashbyhq.com "AI Product Manager" remote'
+    enabled: false
+    requires:
+      - search
+
+tracked_companies:
+  - name: Anthropic
+    careers_url: https://job-boards.greenhouse.io/anthropic
+    provider: greenhouse
+    provider_slug: anthropic
+    api_url: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
+    scan_method: api
+    enabled: true
+    notes: AI lab
+  - name: Example Ashby Company
+    careers_url: https://jobs.ashbyhq.com/example
+    provider: ashby
+    provider_slug: example
+    scan_method: http
+    enabled: false
+    notes: Enable after replacing with a real company slug.
+  - name: Example Lever Company
+    careers_url: https://jobs.lever.co/example
+    provider: lever
+    provider_slug: example
+    scan_method: http
+    enabled: false
+    notes: Enable after replacing with a real company slug.

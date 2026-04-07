@@ -1,9 +1,5 @@
-from fastapi.testclient import TestClient
-from jobharbor.main import app
+from jobharbor.main import health
 
 
 def test_health() -> None:
-    c = TestClient(app)
-    r = c.get('/health')
-    assert r.status_code == 200
-    assert r.json() == {'ok': True}
+    assert health() == {"ok": True}

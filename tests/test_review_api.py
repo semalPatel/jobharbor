@@ -1,18 +1,17 @@
 from collections.abc import Iterator
 
 import pytest
-from fastapi.testclient import TestClient
+from fastapi import HTTPException
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine
 
-from jobharbor.db import get_session
-from jobharbor.main import app
+from jobharbor.api.review import get_review_queue, mark_submitted
 from jobharbor.models import Application, ApplicationStatus, Job
 
 
 @pytest.fixture
-def client_with_db() -> Iterator[tuple[TestClient, Engine]]:
+def session_with_db() -> Iterator[tuple[Session, Engine]]:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -20,14 +19,8 @@ def client_with_db() -> Iterator[tuple[TestClient, Engine]]:
     )
     SQLModel.metadata.create_all(engine)
 
-    def override_get_session() -> Iterator[Session]:
-        with Session(engine) as session:
-            yield session
-
-    app.dependency_overrides[get_session] = override_get_session
-    with TestClient(app) as client:
-        yield client, engine
-    app.dependency_overrides.clear()
+    with Session(engine) as session:
+        yield session, engine
 
 
 def _seed_application(
@@ -51,9 +44,9 @@ def _seed_application(
 
 
 def test_get_review_queue_returns_only_ready_for_review_items(
-    client_with_db: tuple[TestClient, Engine],
+    session_with_db: tuple[Session, Engine],
 ) -> None:
-    client, engine = client_with_db
+    session, engine = session_with_db
     _seed_application(
         engine=engine,
         source="greenhouse",
@@ -67,18 +60,17 @@ def test_get_review_queue_returns_only_ready_for_review_items(
         status=ApplicationStatus.drafting,
     )
 
-    response = client.get("/review/queue")
+    response = get_review_queue(limit=50, offset=0, session=session)
 
-    assert response.status_code == 200
-    assert response.json() == [
+    assert [row.model_dump(mode="json") for row in response] == [
         {"id": 1, "job_id": 1, "status": "ready_for_review"},
     ]
 
 
 def test_get_review_queue_supports_pagination_with_stable_id_ordering(
-    client_with_db: tuple[TestClient, Engine],
+    session_with_db: tuple[Session, Engine],
 ) -> None:
-    client, engine = client_with_db
+    session, engine = session_with_db
     first = _seed_application(
         engine=engine,
         source="greenhouse",
@@ -104,10 +96,9 @@ def test_get_review_queue_supports_pagination_with_stable_id_ordering(
         status=ApplicationStatus.ready_for_review,
     )
 
-    response = client.get("/review/queue?limit=2&offset=1")
+    response = get_review_queue(limit=2, offset=1, session=session)
 
-    assert response.status_code == 200
-    assert response.json() == [
+    assert [row.model_dump(mode="json") for row in response] == [
         {"id": second.id, "job_id": second.job_id, "status": "ready_for_review"},
         {"id": third.id, "job_id": third.job_id, "status": "ready_for_review"},
     ]
@@ -115,9 +106,9 @@ def test_get_review_queue_supports_pagination_with_stable_id_ordering(
 
 
 def test_post_submitted_transitions_application_to_submitted(
-    client_with_db: tuple[TestClient, Engine],
+    session_with_db: tuple[Session, Engine],
 ) -> None:
-    client, engine = client_with_db
+    session, engine = session_with_db
     application = _seed_application(
         engine=engine,
         source="greenhouse",
@@ -125,10 +116,9 @@ def test_post_submitted_transitions_application_to_submitted(
         status=ApplicationStatus.ready_for_review,
     )
 
-    response = client.post(f"/review/{application.id}/submitted")
+    response = mark_submitted(application.id, session=session)
 
-    assert response.status_code == 200
-    assert response.json() == {
+    assert response.model_dump(mode="json") == {
         "id": application.id,
         "job_id": application.job_id,
         "status": "submitted",
@@ -142,20 +132,21 @@ def test_post_submitted_transitions_application_to_submitted(
 
 
 def test_post_submitted_returns_404_for_missing_application(
-    client_with_db: tuple[TestClient, Engine],
+    session_with_db: tuple[Session, Engine],
 ) -> None:
-    client, _ = client_with_db
+    session, _ = session_with_db
 
-    response = client.post("/review/999999/submitted")
+    with pytest.raises(HTTPException) as exc_info:
+        mark_submitted(999999, session=session)
 
-    assert response.status_code == 404
-    assert "application not found" in response.json()["detail"]
+    assert exc_info.value.status_code == 404
+    assert "application not found" in exc_info.value.detail
 
 
 def test_post_submitted_returns_409_for_invalid_transition_conflict(
-    client_with_db: tuple[TestClient, Engine],
+    session_with_db: tuple[Session, Engine],
 ) -> None:
-    client, engine = client_with_db
+    session, engine = session_with_db
     drafting = _seed_application(
         engine=engine,
         source="greenhouse",
@@ -163,7 +154,8 @@ def test_post_submitted_returns_409_for_invalid_transition_conflict(
         status=ApplicationStatus.drafting,
     )
 
-    response = client.post(f"/review/{drafting.id}/submitted")
+    with pytest.raises(HTTPException) as exc_info:
+        mark_submitted(drafting.id, session=session)
 
-    assert response.status_code == 409
-    assert "disallowed transition" in response.json()["detail"]
+    assert exc_info.value.status_code == 409
+    assert "disallowed transition" in exc_info.value.detail

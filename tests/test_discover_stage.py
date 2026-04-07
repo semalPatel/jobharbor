@@ -42,6 +42,8 @@ def test_discover_stage_persists_feed_jobs_with_non_provider_urls() -> None:
             settings=_Settings(),
             feed_urls=("https://feed.example/jobs.rss",),
             feed_fetcher=_feed_fetcher,
+            company_site_urls=(),
+            search_fetcher=lambda **_: [],
             connector_builder=lambda **_: [],
         )
 
@@ -76,6 +78,8 @@ def test_discover_stage_dedupes_existing_jobs() -> None:
                     "posted_at": "2026-03-14",
                 }
             ],
+            company_site_urls=(),
+            search_fetcher=lambda **_: [],
             connector_builder=lambda **_: [],
         )
 
@@ -105,6 +109,8 @@ def test_discover_stage_adds_provider_connector_results() -> None:
                     "posted_at": "2026-03-14",
                 }
             ],
+            company_site_urls=(),
+            search_fetcher=lambda **_: [],
             connector_builder=lambda **_: [
                 (
                     "greenhouse",
@@ -149,6 +155,7 @@ def test_discover_stage_uses_search_seed_urls_to_build_provider_targets() -> Non
             settings=_Settings(),
             feed_urls=("https://feed.example/jobs.rss",),
             feed_fetcher=lambda **_: [],
+            company_site_urls=(),
             search_fetcher=lambda **_: [
                 {
                     "source": "greenhouse",

@@ -16,6 +16,7 @@ DEFAULT_CONFIG_PATH = Path("config.yaml")
 class Settings(BaseSettings):
     scan_interval_hours: int = 6
     database_url: str = "sqlite:///./jobharbor.db"
+    jobharbor_home: Path = Path("./workspace")
     notification_provider: Literal["pushover", "email"] = "pushover"
     notification_fallback: Literal["email"] = "email"
 

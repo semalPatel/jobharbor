@@ -17,6 +17,9 @@ dependencies = [
   "uvicorn>=0.29,<1.0",
 ]
 
+[project.scripts]
+jobharbor = "jobharbor.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0,<10.0",
