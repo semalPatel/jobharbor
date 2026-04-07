@@ -227,6 +227,7 @@ def expand_feed_jobs_with_provider_urls(
 def discover_provider_urls_from_search(
     *,
     include_keywords: Iterable[str] = (),
+    queries: Iterable[str] | None = None,
     fetch_text: Callable[[str], str] | None = None,
     max_results_per_query: int = 10,
 ) -> list[dict[str, str]]:
@@ -234,7 +235,11 @@ def discover_provider_urls_from_search(
     discovered: list[dict[str, str]] = []
     seen_urls: set[str] = set()
 
-    for query in _build_provider_search_queries(include_keywords):
+    search_queries = [query.strip() for query in (queries or ()) if query.strip()]
+    if not search_queries:
+        search_queries = _build_provider_search_queries(include_keywords)
+
+    for query in search_queries:
         search_url = f"{DUCKDUCKGO_HTML_SEARCH_URL}?{urllib_parse.urlencode({'q': query})}"
         try:
             html = fetcher(search_url)

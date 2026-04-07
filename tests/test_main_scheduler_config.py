@@ -52,3 +52,24 @@ def test_default_config_path_used_when_env_unset(tmp_path: Path, monkeypatch: Mo
 
     assert settings.scan_interval_hours == 4
     assert settings.include_domain_keywords == ("default",)
+
+
+def test_settings_applies_yaml_discovery_capabilities(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    config_file = tmp_path / "yaml_config.yaml"
+    config_file.write_text(
+        "scan_interval_hours: 3\ndiscovery_capabilities:\n  - http\n  - search\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(CONFIG_ENV_VAR, str(config_file))
+
+    settings = Settings()
+
+    assert settings.discovery_capabilities == ("http", "search")
+
+
+def test_settings_splits_env_discovery_capabilities(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setenv("JOBHARBOR_DISCOVERY_CAPABILITIES", "http,search")
+
+    settings = Settings()
+
+    assert settings.discovery_capabilities == ("http", "search")

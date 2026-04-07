@@ -3,6 +3,7 @@ from collections.abc import Iterator
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from jobharbor.models import Job
+from jobharbor.scan_history import ScanHistoryWriter
 from jobharbor.workers.discover_stage import DiscoverStageWorker
 
 
@@ -17,6 +18,7 @@ class _FakeConnector:
 class _Settings:
     connector_rollout: tuple[str, ...] = ()
     jobharbor_home = None
+    discovery_capabilities: tuple[str, ...] = ("http",)
 
 
 def test_discover_stage_persists_feed_jobs_with_non_provider_urls() -> None:
@@ -152,6 +154,9 @@ def test_discover_stage_uses_search_seed_urls_to_build_provider_targets() -> Non
     SQLModel.metadata.create_all(engine)
     captured_targets: dict[str, set[str]] = {}
 
+    class _SearchSettings(_Settings):
+        discovery_capabilities = ("http", "search")
+
     def _connector_builder(*, targets, rollout):
         del rollout
         captured_targets.update({k: set(v) for k, v in targets.items()})
@@ -159,8 +164,8 @@ def test_discover_stage_uses_search_seed_urls_to_build_provider_targets() -> Non
 
     with Session(engine) as session:
         worker = DiscoverStageWorker(
-            session=session,
-            settings=_Settings(),
+                session=session,
+                settings=_SearchSettings(),
             feed_urls=("https://feed.example/jobs.rss",),
             feed_fetcher=lambda **_: [],
             company_site_urls=(),
@@ -305,3 +310,97 @@ tracked_companies:
 
     assert captured_targets == {"greenhouse": {"anthropic"}}
     assert context["portal_config_skipped"] == ("Browser Only: missing capability browser",)
+
+
+def test_discover_stage_records_scan_history_for_added_duplicate_and_skipped(tmp_path) -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    (tmp_path / "portals.yml").write_text(
+        """\
+tracked_companies:
+  - name: Browser Only
+    careers_url: https://example.com/careers
+    scan_method: browser
+    enabled: true
+""",
+        encoding="utf-8",
+    )
+
+    class _PortalSettings(_Settings):
+        jobharbor_home = tmp_path
+
+    with Session(engine) as session:
+        session.add(Job(source="feed", external_id="feed-duplicate"))
+        session.commit()
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_PortalSettings(),
+            feed_fetcher=lambda **_: [
+                {
+                    "source": "feed",
+                    "external_id": "feed-duplicate",
+                    "url": "https://example.com/duplicate",
+                },
+                {
+                    "source": "feed",
+                    "external_id": "feed-added",
+                    "url": "https://example.com/added",
+                    "title": "AI Engineer",
+                    "company": "Acme",
+                },
+            ],
+            company_site_urls=(),
+            search_fetcher=lambda **_: [],
+            connector_builder=lambda **_: [],
+            scan_history_writer=ScanHistoryWriter(tmp_path / "data" / "scan-history.tsv"),
+        )
+
+        worker.run({})
+
+    history = (tmp_path / "data" / "scan-history.tsv").read_text(encoding="utf-8")
+    assert "skipped_capability" in history
+    assert "skipped_dup" in history
+    assert "added" in history
+
+
+def test_discover_stage_does_not_fallback_to_default_search_when_portals_have_no_enabled_queries(tmp_path) -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    (tmp_path / "portals.yml").write_text(
+        """\
+search_queries:
+  - name: Disabled Search
+    query: site:jobs.ashbyhq.com acme
+    enabled: false
+    requires:
+      - search
+tracked_companies:
+  - name: Acme
+    careers_url: https://jobs.ashbyhq.com/acme
+    enabled: true
+""",
+        encoding="utf-8",
+    )
+    search_called = False
+
+    class _PortalSearchSettings(_Settings):
+        jobharbor_home = tmp_path
+        discovery_capabilities = ("http", "search")
+
+    def _search_fetcher(**_):
+        nonlocal search_called
+        search_called = True
+        return []
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_PortalSearchSettings(),
+            feed_fetcher=lambda **_: [],
+            company_site_urls=(),
+            search_fetcher=_search_fetcher,
+            connector_builder=lambda **_: [],
+        )
+        worker.run({})
+
+    assert search_called is False

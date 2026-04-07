@@ -1,6 +1,7 @@
+from collections import Counter
 from pathlib import Path
 
-from jobharbor.portal_config import build_portal_discovery_plan, load_portals_config
+from jobharbor.portal_config import CONNECTOR_PROVIDERS, build_portal_discovery_plan, load_portals_config
 
 
 def test_loads_title_filter(tmp_path: Path) -> None:
@@ -86,3 +87,29 @@ tracked_companies:
     plan = build_portal_discovery_plan(load_portals_config(path))
 
     assert plan.provider_targets == {"greenhouse": {"anthropic"}}
+
+
+def test_template_catalog_loads_full_career_ops_catalog() -> None:
+    config = load_portals_config(Path("templates/portals.example.yml"))
+
+    assert "AI" in config.title_filter.positive
+    assert len(config.tracked_companies) == 76
+    assert len(config.search_queries) == 19
+    assert all(not query.enabled for query in config.search_queries)
+    assert all("search" in query.requires for query in config.search_queries)
+
+
+def test_template_enabled_companies_are_connector_safe_or_skipped() -> None:
+    config = load_portals_config(Path("templates/portals.example.yml"))
+    plan = build_portal_discovery_plan(config)
+    provider_counts = Counter(company.provider for company in config.tracked_companies if company.enabled)
+
+    assert provider_counts["greenhouse"] > 0
+    assert provider_counts["ashby"] > 0
+    assert provider_counts["lever"] > 0
+    assert set(provider_counts).issubset(CONNECTOR_PROVIDERS)
+    assert all(
+        company.provider in plan.provider_targets and company.provider_slug in plan.provider_targets[company.provider]
+        for company in config.tracked_companies
+        if company.enabled
+    )

@@ -15,6 +15,7 @@ from jobharbor.connectors.smartrecruiters import SmartRecruitersConnector
 from jobharbor.connectors.ycombinator import YCombinatorConnector
 from jobharbor.models import Job, JobStatus
 from jobharbor.portal_config import build_portal_discovery_plan, load_portals_config
+from jobharbor.scan_history import ScanHistoryWriter
 from jobharbor.services.auto_discovery import (
     DEFAULT_MOBILE_COMPANY_CAREER_URLS,
     DEFAULT_FEED_URLS,
@@ -75,6 +76,7 @@ class DiscoverStageWorker:
         company_site_fetcher: Callable[..., list[dict[str, str]]] = discover_jobs_from_company_career_sites,
         search_fetcher: Callable[..., list[dict[str, str]]] = discover_provider_urls_from_search,
         connector_builder: Callable[..., list[tuple[str, JobConnector]]] | None = None,
+        scan_history_writer: ScanHistoryWriter | None = None,
     ) -> None:
         self._session = session
         self._settings = settings
@@ -84,24 +86,38 @@ class DiscoverStageWorker:
         self._company_site_fetcher = company_site_fetcher
         self._search_fetcher = search_fetcher
         self._connector_builder = connector_builder or self._build_connectors
+        self._scan_history_writer = scan_history_writer
 
     def run(self, context: dict[str, object]) -> None:
         feed_jobs = self._feed_fetcher(feed_urls=self._feed_urls)
         company_seed_jobs = self._company_site_fetcher(career_urls=self._company_site_urls)
         provider_jobs_from_pages = expand_feed_jobs_with_provider_urls(feed_jobs + company_seed_jobs)
-        provider_jobs_from_search = self._search_fetcher(
-            include_keywords=getattr(self._settings, "include_domain_keywords", ()),
-        )
+        portal_targets, portal_search_queries, skipped_portal_entries = self._portal_plan()
+        self._record_skipped_portal_entries(skipped_portal_entries)
+
+        provider_jobs_from_search: list[dict[str, str]] = []
+        if "search" in self._discovery_capabilities():
+            search_queries = [query.query for query in portal_search_queries]
+            if portal_targets is None or search_queries:
+                provider_jobs_from_search = self._search_fetcher(
+                    include_keywords=getattr(self._settings, "include_domain_keywords", ()),
+                    queries=search_queries or None,
+                )
         merged_seed_jobs = feed_jobs + company_seed_jobs + provider_jobs_from_pages + provider_jobs_from_search
         targets = extract_provider_targets(job.get("url", "") for job in merged_seed_jobs)
-        portal_targets, skipped_portal_entries = self._portal_targets()
         targets = self._merge_targets(targets, portal_targets if portal_targets is not None else default_provider_targets())
         rollout = getattr(self._settings, "connector_rollout", ()) or ()
         connectors = self._connector_builder(targets=targets, rollout=rollout)
 
         provider_jobs: list[dict[str, object]] = []
         if connectors:
-            provider_jobs, _ = DiscoveryService(connectors=connectors).discover()
+            provider_jobs, outcome = DiscoveryService(connectors=connectors).discover()
+            for failure in outcome.failure_details:
+                self._record_scan_history(
+                    status="failed_fetch",
+                    source=failure.get("source", ""),
+                    reason=f"{failure.get('error_type', '')}: {failure.get('message', '')}".strip(": "),
+                )
             provider_jobs = prefilter_jobs_for_mobile_focus(
                 provider_jobs,
                 include_keywords=getattr(self._settings, "include_domain_keywords", ()),
@@ -122,6 +138,7 @@ class DiscoverStageWorker:
             if not source or not external_id:
                 continue
             if job_exists(self._session, source=source, external_id=external_id):
+                self._record_scan_history(status="skipped_dup", job=job, reason="duplicate source/external_id")
                 continue
             self._session.add(
                 Job(
@@ -140,6 +157,7 @@ class DiscoverStageWorker:
                     or self._optional_text(job.get("query_name")),
                 )
             )
+            self._record_scan_history(status="added", job=job)
             inserted += 1
 
         try:
@@ -196,12 +214,40 @@ class DiscoverStageWorker:
             merged.setdefault(provider, set()).update(slugs)
         return {provider: slugs for provider, slugs in merged.items() if slugs}
 
-    def _portal_targets(self) -> tuple[dict[str, set[str]] | None, tuple[str, ...]]:
+    def _portal_plan(self) -> tuple[dict[str, set[str]] | None, tuple[object, ...], tuple[str, ...]]:
         if getattr(self._settings, "jobharbor_home", None) is None:
-            return None, ()
+            return None, (), ()
         portals_path = WorkspacePaths.from_settings(self._settings).portals_yml
         if not portals_path.exists():
-            return None, ()
+            return None, (), ()
         config = load_portals_config(portals_path)
-        plan = build_portal_discovery_plan(config)
-        return plan.provider_targets, plan.skipped
+        plan = build_portal_discovery_plan(config, capabilities=self._discovery_capabilities())
+        return plan.provider_targets, plan.search_queries, plan.skipped
+
+    def _discovery_capabilities(self) -> set[str]:
+        capabilities = getattr(self._settings, "discovery_capabilities", ("http",)) or ("http",)
+        if isinstance(capabilities, str):
+            capabilities = tuple(part.strip() for part in capabilities.split(",") if part.strip())
+        return {str(capability).strip().lower() for capability in capabilities if str(capability).strip()}
+
+    def _record_skipped_portal_entries(self, entries: Sequence[str]) -> None:
+        for entry in entries:
+            self._record_scan_history(status="skipped_capability", reason=entry)
+
+    def _record_scan_history(
+        self,
+        *,
+        status: str,
+        reason: str = "",
+        job: Mapping[str, object] | None = None,
+        source: str | None = None,
+    ) -> None:
+        writer = self._scan_history_writer or self._default_scan_history_writer()
+        if writer is None:
+            return
+        writer.append(status=status, reason=reason, job=job, source=source)
+
+    def _default_scan_history_writer(self) -> ScanHistoryWriter | None:
+        if getattr(self._settings, "jobharbor_home", None) is None:
+            return None
+        return ScanHistoryWriter(WorkspacePaths.from_settings(self._settings).scan_history_tsv)

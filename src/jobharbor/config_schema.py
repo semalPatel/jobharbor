@@ -15,6 +15,7 @@ class YamlConfig:
     allowed_location_keywords: Tuple[str, ...] = field(default_factory=tuple)
     allowed_work_auth: Tuple[str, ...] = field(default_factory=tuple)
     connector_rollout: Tuple[str, ...] = field(default_factory=tuple)
+    discovery_capabilities: Tuple[str, ...] = field(default_factory=tuple)
 
 
 def load_yaml_config(path: Path) -> YamlConfig:
@@ -26,6 +27,7 @@ def load_yaml_config(path: Path) -> YamlConfig:
         allowed_location_keywords=_normalize_list(payload.get("allowed_location_keywords")),
         allowed_work_auth=_normalize_list(payload.get("allowed_work_auth")),
         connector_rollout=_normalize_list(payload.get("connector_rollout")),
+        discovery_capabilities=_normalize_list(payload.get("discovery_capabilities")),
     )
 
 

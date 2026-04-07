@@ -68,6 +68,7 @@ class PortalConfig:
 @dataclass(frozen=True)
 class PortalDiscoveryPlan:
     provider_targets: dict[str, set[str]]
+    search_queries: tuple[SearchQueryConfig, ...] = ()
     skipped: tuple[str, ...] = ()
 
 
@@ -116,6 +117,7 @@ def build_portal_discovery_plan(
 ) -> PortalDiscoveryPlan:
     capability_set = set(capabilities)
     targets: dict[str, set[str]] = {}
+    search_queries: list[SearchQueryConfig] = []
     skipped: list[str] = []
 
     for company in config.tracked_companies:
@@ -124,6 +126,8 @@ def build_portal_discovery_plan(
         reason = _skip_reason(company, capability_set)
         if reason is not None:
             skipped.append(f"{company.name}: {reason}")
+            continue
+        if company.scan_method == "search":
             continue
         if company.provider not in CONNECTOR_PROVIDERS:
             skipped.append(f"{company.name}: unsupported provider {company.provider}")
@@ -139,8 +143,29 @@ def build_portal_discovery_plan(
         missing = set(query.requires or ("search",)) - capability_set
         if missing:
             skipped.append(f"{query.name}: missing capability {','.join(sorted(missing))}")
+            continue
+        search_queries.append(query)
 
-    return PortalDiscoveryPlan(provider_targets=targets, skipped=tuple(skipped))
+    for company in config.tracked_companies:
+        if not company.enabled or company.scan_method != "search" or not company.scan_query:
+            continue
+        missing = (set(company.requires) | {"search"}) - capability_set
+        if missing:
+            continue
+        search_queries.append(
+            SearchQueryConfig(
+                name=company.name,
+                query=company.scan_query,
+                enabled=True,
+                requires=("search",),
+            )
+        )
+
+    return PortalDiscoveryPlan(
+        provider_targets=targets,
+        search_queries=tuple(search_queries),
+        skipped=tuple(skipped),
+    )
 
 
 def _skip_reason(company: TrackedCompanyConfig, capabilities: set[str]) -> str | None:

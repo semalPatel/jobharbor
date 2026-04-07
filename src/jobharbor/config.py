@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Literal, Any, Mapping
 
-from pydantic import field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from jobharbor.config_schema import YamlConfig, load_yaml_config
@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     allowed_location_keywords: tuple[str, ...] = ()
     allowed_work_auth: tuple[str, ...] = ()
     connector_rollout: tuple[str, ...] = ()
+    discovery_capabilities: tuple[str, ...] | str = Field(
+        default=("http",),
+        validation_alias=AliasChoices("JOBHARBOR_DISCOVERY_CAPABILITIES", "DISCOVERY_CAPABILITIES"),
+    )
 
     @field_validator(
         "pushover_api_token",
@@ -55,10 +59,30 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @field_validator(
+        "include_domain_keywords",
+        "exclude_domain_keywords",
+        "allowed_location_keywords",
+        "allowed_work_auth",
+        "connector_rollout",
+        "discovery_capabilities",
+        mode="before",
+    )
+    @classmethod
+    def split_csv_tuple(cls, value: object) -> object:
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return ()
+            if "," in text:
+                return tuple(part.strip() for part in text.split(",") if part.strip())
+        return value
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     @model_validator(mode="before")
@@ -88,6 +112,7 @@ class Settings(BaseSettings):
             "allowed_location_keywords": config.allowed_location_keywords or (),
             "allowed_work_auth": config.allowed_work_auth or (),
             "connector_rollout": config.connector_rollout or (),
+            "discovery_capabilities": config.discovery_capabilities or None,
         }
 
     @classmethod
