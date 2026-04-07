@@ -16,6 +16,107 @@ prior conversation context. It intentionally restates the important project
 context, target behavior, file paths, data contracts, phases, tests, and
 acceptance criteria.
 
+## Start Here
+
+The starting point is Phase 0: Workspace and Contract Foundation.
+
+Do not start with agent evaluation, PDF generation, batch processing, or UI.
+Those phases depend on earlier decisions about workspace paths, file ownership,
+portal config, and durable job data.
+
+If an implementation agent is handed this document with no other context, it
+should proceed like this:
+
+1. Read `Non-Negotiable Product Rules`.
+2. Read `Current Repo Context`.
+3. Read `Data Contracts`.
+4. Implement exactly one phase at a time, starting with Phase 0.
+5. For each phase, follow its `Goal`, `Files to add`, `Files to modify`,
+   `Implementation steps`, `Tests`, and `Acceptance`.
+6. Stop at the end of the phase unless explicitly asked to continue.
+
+Do not skip phases unless a human explicitly changes the sequencing.
+
+## Phase Map
+
+This map shows what each phase unlocks and why it exists.
+
+| Phase | Name | Unlocks | Depends On |
+| --- | --- | --- | --- |
+| 0 | Workspace and Contract Foundation | `JOBHARBOR_HOME`, templates, `jobharbor bootstrap`, user-owned files | Existing repo |
+| 1 | Portal Config MVP | `portals.yml`, career-ops company/job-board presets, YAML-driven discovery | Phase 0 |
+| 2 | Rich Job Persistence | Durable title/company/url/location data for review, tracker, reports | Phase 1 |
+| 3 | Tracker Export and Lifecycle Status | `data/applications.md`, tracker CLI, lifecycle status | Phase 2 |
+| 4 | Report Artifacts With Stub Evaluation | Structured evaluation schema, deterministic reports, artifact metadata | Phase 3 |
+| 5 | Agent Provider Integration | Codex/generic command evaluation behind validated provider interface | Phase 4 |
+| 6 | PDF Artifact Generation | CV/PDF artifacts linked from tracker | Phase 4, optionally Phase 5 |
+| 7 | Pipeline Inbox | `data/pipeline.md` user URL inbox backed by DB | Phase 2, Phase 4 |
+| 8 | Batch Processing | Bounded processing of backlog items | Phase 7, Phase 5 if agent-backed |
+| 9 | Apply Assist | Draft application answers without submission | Phase 5 |
+| 10 | Optional UI/TUI/API Improvements | Better review surfaces | Phases 3-7 |
+
+Recommended implementation order:
+
+```text
+0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
+```
+
+Acceptable minor variation:
+
+```text
+0 -> 1 -> 2 -> 3 -> 4 -> 7 -> 5 -> 6 -> 8 -> 9 -> 10
+```
+
+Use the minor variation only if the team wants the manual URL inbox before live
+agent integration.
+
+## Dependency Map
+
+Core dependency chain:
+
+```text
+Workspace paths
+  -> portals.yml loader
+  -> richer job persistence
+  -> tracker export
+  -> report artifacts
+  -> agent evaluation
+  -> PDF/apply assist/batch
+```
+
+Why this order matters:
+
+- `portals.yml` needs a workspace.
+- tracker/report/PDF output needs durable job title/company/url fields.
+- agent output needs a structured result schema and artifact destination.
+- batch processing should not exist until single-item processing is stable.
+- apply assist should not exist until evaluations/reports are available.
+
+## Navigation Guide
+
+Use this guide to jump to the right section:
+
+- To create the workspace and CLI bootstrap, go to `Phase 0`.
+- To port career-ops companies/job boards, go to `Phase 1` and the
+  `portals.yml` data contract.
+- To make review rows show real job details, go to `Phase 2`.
+- To implement `data/applications.md`, go to `Phase 3`.
+- To generate reports without an agent, go to `Phase 4`.
+- To wire Codex or another agent, go to `Phase 5`.
+- To generate tailored CV/PDF artifacts, go to `Phase 6`.
+- To process manually pasted URLs, go to `Phase 7`.
+- To process many pending jobs, go to `Phase 8`.
+- To draft form answers, go to `Phase 9`.
+- To build a UI/TUI, go to `Phase 10`.
+
+If a task references a file format, read `Data Contracts` before coding.
+
+If a task references agent behavior, read `Agent Layer`, `Evaluation Result`,
+and `Phase 5` before coding.
+
+If a task references tracker behavior, read `data/applications.md` and Phase 3
+before coding.
+
 ## Non-Negotiable Product Rules
 
 - Do not build spray-and-pray application automation.
