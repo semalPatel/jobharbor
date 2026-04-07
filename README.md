@@ -53,6 +53,10 @@ jobharbor tracker set-status 42 Applied
 jobharbor tracker note 42 "Applied via Greenhouse."
 ```
 
+Queued applications now get a deterministic stub evaluation report under
+`reports/` before any live agent provider is configured. The tracker links the
+latest report artifact when one exists.
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.

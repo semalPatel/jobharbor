@@ -93,3 +93,27 @@ class RunLog(SQLModel, table=True):
     source: str = Field(index=True)
     status: RunStatus = Field(default=RunStatus.started, index=True)
     message: str | None = None
+
+
+class Evaluation(SQLModel, table=True):
+    __tablename__ = "evaluations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    application_id: int = Field(foreign_key="applications.id", index=True)
+    job_id: int = Field(foreign_key="jobs.id", index=True)
+    score: float = Field(index=True)
+    recommendation: str = Field(index=True)
+    summary: str
+    payload_json: str
+    provider: str = Field(index=True)
+    created_at: str | None = None
+
+
+class Artifact(SQLModel, table=True):
+    __tablename__ = "artifacts"
+
+    id: int | None = Field(default=None, primary_key=True)
+    application_id: int = Field(foreign_key="applications.id", index=True)
+    kind: str = Field(index=True)
+    path: str
+    created_at: str | None = None

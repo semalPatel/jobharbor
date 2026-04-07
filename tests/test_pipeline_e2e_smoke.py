@@ -60,6 +60,7 @@ def test_pipeline_runs_stages_in_deterministic_order() -> None:
         "pipeline:dedupe",
         "pipeline:score",
         "pipeline:queue",
+        "pipeline:evaluate",
         "pipeline:prefill",
         "pipeline:review",
         "pipeline:notify",

@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlmodel import Session, select
 
 from jobharbor.models import Application, ApplicationStatus, Job
+from jobharbor.reports import report_artifact_for_application
 
 
 TRACKER_STATUSES: tuple[str, ...] = (
@@ -115,9 +116,17 @@ class TrackerExportService:
             score="",
             status=tracker_status_for(application),
             pdf="",
-            report="",
+            report=self._report_link(application),
             notes=application.notes or "",
         )
+
+    def _report_link(self, application: Application) -> str:
+        if application.id is None:
+            return ""
+        artifact = report_artifact_for_application(self._session, application.id)
+        if artifact is None:
+            return ""
+        return f"[Report]({artifact.path})"
 
 
 def tracker_status_for(application: Application) -> str:

@@ -12,6 +12,7 @@ STAGE_ORDER: tuple[str, ...] = (
     "dedupe",
     "score",
     "queue",
+    "evaluate",
     "prefill",
     "review",
     "notify",

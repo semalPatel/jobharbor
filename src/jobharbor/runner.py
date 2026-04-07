@@ -13,6 +13,7 @@ from jobharbor.notifications.email_fallback import EmailFallbackNotifier
 from jobharbor.notifications.push import PushNotifier
 from jobharbor.notifications.router import NotificationRouter
 from jobharbor.observability.metrics import MetricsRecorder
+from jobharbor.reports import EvaluationReportStageWorker
 from jobharbor.services.pipeline import PipelineCoordinator, STAGE_ORDER, StageHandler
 from jobharbor.workers.dedupe_stage import DedupeStageWorker
 from jobharbor.workers.discover_stage import DiscoverStageWorker
@@ -22,6 +23,7 @@ from jobharbor.workers.prefill_stage import PrefillStageWorker
 from jobharbor.workers.queue_stage import QueueStageWorker
 from jobharbor.workers.review_stage import ReviewStageWorker
 from jobharbor.workers.score_stage import ScoreStageWorker
+from jobharbor.workspace import WorkspacePaths
 
 _LOGGER = logging.getLogger(__name__)
 _METRICS = MetricsRecorder()
@@ -62,6 +64,7 @@ def _build_stage_handlers(*, session: Session, settings: Settings) -> dict[str, 
     handlers["dedupe"] = _make_dedupe_stage()
     handlers["score"] = _make_score_stage(settings=settings)
     handlers["queue"] = _make_queue_stage(session=session)
+    handlers["evaluate"] = _make_evaluate_stage(session=session, settings=settings)
     handlers["prefill"] = _make_prefill_stage(session=session)
     handlers["review"] = _make_review_stage()
     handlers["notify"] = _make_notify_stage(session=session, settings=settings)
@@ -106,6 +109,18 @@ def _make_score_stage(*, settings: Settings) -> StageHandler:
 
 def _make_queue_stage(*, session: Session) -> StageHandler:
     worker = QueueStageWorker(session=session)
+
+    def _stage(context: dict[str, Any]) -> None:
+        worker.run(context)
+
+    return _stage
+
+
+def _make_evaluate_stage(*, session: Session, settings: Settings) -> StageHandler:
+    worker = EvaluationReportStageWorker(
+        session=session,
+        reports_dir=WorkspacePaths.from_settings(settings).reports_dir,
+    )
 
     def _stage(context: dict[str, Any]) -> None:
         worker.run(context)
