@@ -14,6 +14,7 @@ from jobharbor.connectors.lever import LeverConnector
 from jobharbor.connectors.smartrecruiters import SmartRecruitersConnector
 from jobharbor.connectors.ycombinator import YCombinatorConnector
 from jobharbor.models import Job, JobStatus
+from jobharbor.portal_config import build_portal_discovery_plan, load_portals_config
 from jobharbor.services.auto_discovery import (
     DEFAULT_MOBILE_COMPANY_CAREER_URLS,
     DEFAULT_FEED_URLS,
@@ -27,6 +28,7 @@ from jobharbor.services.auto_discovery import (
 )
 from jobharbor.services.dedupe import job_exists
 from jobharbor.services.discovery_service import DiscoveryService
+from jobharbor.workspace import WorkspacePaths
 
 
 def _default_request(
@@ -92,7 +94,8 @@ class DiscoverStageWorker:
         )
         merged_seed_jobs = feed_jobs + company_seed_jobs + provider_jobs_from_pages + provider_jobs_from_search
         targets = extract_provider_targets(job.get("url", "") for job in merged_seed_jobs)
-        targets = self._merge_targets(targets, default_provider_targets())
+        portal_targets, skipped_portal_entries = self._portal_targets()
+        targets = self._merge_targets(targets, portal_targets if portal_targets is not None else default_provider_targets())
         rollout = getattr(self._settings, "connector_rollout", ()) or ()
         connectors = self._connector_builder(targets=targets, rollout=rollout)
 
@@ -108,6 +111,8 @@ class DiscoverStageWorker:
         inserted = self._persist_jobs(discovered_jobs)
         context["discovered_jobs"] = discovered_jobs
         context["discovered_jobs_count"] = inserted
+        if skipped_portal_entries:
+            context["portal_config_skipped"] = skipped_portal_entries
 
     def _persist_jobs(self, jobs: Sequence[Mapping[str, object]]) -> int:
         inserted = 0
@@ -174,3 +179,13 @@ class DiscoverStageWorker:
                 continue
             merged.setdefault(provider, set()).update(slugs)
         return {provider: slugs for provider, slugs in merged.items() if slugs}
+
+    def _portal_targets(self) -> tuple[dict[str, set[str]] | None, tuple[str, ...]]:
+        if getattr(self._settings, "jobharbor_home", None) is None:
+            return None, ()
+        portals_path = WorkspacePaths.from_settings(self._settings).portals_yml
+        if not portals_path.exists():
+            return None, ()
+        config = load_portals_config(portals_path)
+        plan = build_portal_discovery_plan(config)
+        return plan.provider_targets, plan.skipped

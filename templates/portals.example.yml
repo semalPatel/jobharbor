@@ -14,6 +14,16 @@ search_queries:
     enabled: false
     requires:
       - search
+  - name: Greenhouse - AI Engineer
+    query: 'site:job-boards.greenhouse.io "AI Engineer" OR "LLM" remote'
+    enabled: false
+    requires:
+      - search
+  - name: Lever - Solutions Architect
+    query: 'site:jobs.lever.co "Solutions Architect" AI remote'
+    enabled: false
+    requires:
+      - search
 
 tracked_companies:
   - name: Anthropic
@@ -38,3 +48,16 @@ tracked_companies:
     scan_method: http
     enabled: false
     notes: Enable after replacing with a real company slug.
+  - name: Example SmartRecruiters Company
+    careers_url: https://jobs.smartrecruiters.com/example
+    provider: smartrecruiters
+    provider_slug: example
+    scan_method: http
+    enabled: false
+    notes: Enable after replacing with a real company slug.
+  - name: Example Browser Company
+    careers_url: https://example.com/careers
+    provider: custom
+    scan_method: browser
+    enabled: false
+    notes: Browser scanning is intentionally disabled in the MVP.

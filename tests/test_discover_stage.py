@@ -16,6 +16,7 @@ class _FakeConnector:
 
 class _Settings:
     connector_rollout: tuple[str, ...] = ()
+    jobharbor_home = None
 
 
 def test_discover_stage_persists_feed_jobs_with_non_provider_urls() -> None:
@@ -245,9 +246,55 @@ def test_discover_stage_uses_company_site_seed_urls_for_targets() -> None:
                     "description": "mobile",
                 }
             ],
+            search_fetcher=lambda **_: [],
             connector_builder=_connector_builder,
         )
         worker.run({})
 
     assert "lever" in captured_targets
     assert "acme" in captured_targets["lever"]
+
+
+def test_discover_stage_uses_portals_yml_targets_when_present(tmp_path) -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    (tmp_path / "portals.yml").write_text(
+        """\
+tracked_companies:
+  - name: Anthropic
+    careers_url: https://job-boards.greenhouse.io/anthropic
+    api_url: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
+    enabled: true
+  - name: Browser Only
+    careers_url: https://example.com/careers
+    scan_method: browser
+    enabled: true
+""",
+        encoding="utf-8",
+    )
+    captured_targets: dict[str, set[str]] = {}
+
+    class _PortalSettings(_Settings):
+        jobharbor_home = tmp_path
+
+    def _connector_builder(*, targets, rollout):
+        del rollout
+        captured_targets.update({k: set(v) for k, v in targets.items()})
+        return []
+
+    with Session(engine) as session:
+        worker = DiscoverStageWorker(
+            session=session,
+            settings=_PortalSettings(),
+            feed_urls=("https://feed.example/jobs.rss",),
+            feed_fetcher=lambda **_: [],
+            company_site_urls=(),
+            search_fetcher=lambda **_: [],
+            connector_builder=_connector_builder,
+        )
+        context: dict[str, object] = {}
+
+        worker.run(context)
+
+    assert captured_targets == {"greenhouse": {"anthropic"}}
+    assert context["portal_config_skipped"] == ("Browser Only: missing capability browser",)

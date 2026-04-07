@@ -38,6 +38,12 @@ Bootstrap creates missing directories and files such as `cv.md`,
 `data/pipeline.md`, `data/scan-history.tsv`, `reports/`, `output/`, `jds/`,
 `prompts/`, and `templates/`. Existing files are preserved.
 
+`portals.yml` can define `title_filter`, `search_queries`, and
+`tracked_companies`. Enabled Greenhouse, Ashby, Lever, and SmartRecruiters
+company entries with `api` or `http` scan methods feed the existing discovery
+connectors. Entries requiring `browser`, `search`, or `agent` capabilities are
+kept in the file but skipped until those capabilities are enabled.
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.
