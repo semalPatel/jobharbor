@@ -57,6 +57,11 @@ Queued applications now get a deterministic stub evaluation report under
 `reports/` before any live agent provider is configured. The tracker links the
 latest report artifact when one exists.
 
+To use an external evaluator, set `EVALUATION_PROVIDER=command` and provide an
+`EVALUATION_COMMAND`. Jobharbor sends JSON on stdin and expects validated
+EvaluationResult JSON on stdout. `EVALUATION_PROVIDER=stub` remains the default
+so scheduled scans can run without an agent.
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.

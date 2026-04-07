@@ -32,6 +32,7 @@ def test_bootstrap_creates_expected_workspace_paths(tmp_path: Path) -> None:
     assert paths.output_dir.is_dir()
     assert paths.jds_dir.is_dir()
     assert paths.prompts_dir.is_dir()
+    assert (paths.prompts_dir / "evaluation.md").exists()
     assert paths.templates_dir.is_dir()
     assert paths.states_yml.exists()
     assert paths.cv_md in result.created

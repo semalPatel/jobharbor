@@ -144,6 +144,10 @@ class WorkspaceBootstrapper:
             self.paths.scan_history_tsv: (
                 "url\tfirst_seen\tsource\ttitle\tcompany\tstatus\treason\n"
             ),
+            self.paths.prompts_dir / "evaluation.md": (
+                "Evaluate the job against the candidate profile and return only JSON matching\n"
+                "Jobharbor's EvaluationResult schema. Do not submit or apply to the job.\n"
+            ),
         }
 
 

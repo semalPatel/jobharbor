@@ -7,6 +7,9 @@ ENV_KEYS = [
     "SCAN_INTERVAL_HOURS",
     "DATABASE_URL",
     "JOBHARBOR_HOME",
+    "EVALUATION_PROVIDER",
+    "EVALUATION_COMMAND",
+    "EVALUATION_TIMEOUT_SECONDS",
     "NOTIFICATION_PROVIDER",
     "NOTIFICATION_FALLBACK",
     "PUSHOVER_API_TOKEN",
@@ -31,6 +34,9 @@ def test_settings_defaults(monkeypatch) -> None:
 
     assert settings.scan_interval_hours == 6
     assert settings.database_url == "sqlite:///./jobharbor.db"
+    assert settings.evaluation_provider == "stub"
+    assert settings.evaluation_command is None
+    assert settings.evaluation_timeout_seconds == 60
     assert settings.notification_provider == "pushover"
     assert settings.notification_fallback == "email"
 

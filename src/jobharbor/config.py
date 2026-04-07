@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     scan_interval_hours: int = 6
     database_url: str = "sqlite:///./jobharbor.db"
     jobharbor_home: Path = Path("./workspace")
+    evaluation_provider: Literal["stub", "command", "codex"] = "stub"
+    evaluation_command: str | None = None
+    evaluation_timeout_seconds: int = 60
     notification_provider: Literal["pushover", "email"] = "pushover"
     notification_fallback: Literal["email"] = "email"
 
@@ -43,6 +46,7 @@ class Settings(BaseSettings):
         "smtp_user",
         "smtp_pass",
         "smtp_to",
+        "evaluation_command",
         mode="before",
     )
     @classmethod

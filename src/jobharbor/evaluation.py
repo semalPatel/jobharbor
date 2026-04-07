@@ -59,7 +59,16 @@ class EvaluationResult:
 class StubEvaluationProvider:
     provider_name = "stub"
 
-    def evaluate(self, *, application: Application, job: Job, profile_text: str = "") -> EvaluationResult:
+    def evaluate(
+        self,
+        *,
+        application: Application,
+        job: Job,
+        cv_text: str = "",
+        profile_text: str = "",
+        prompt_text: str = "",
+    ) -> EvaluationResult:
+        del cv_text, prompt_text
         role = job.title or "Unknown role"
         company = job.company or "Unknown company"
         profile_bonus = 0.2 if profile_text.strip() else 0.0
@@ -115,3 +124,20 @@ def latest_evaluation_for_application(session: Session, application_id: int) -> 
         .limit(1)
     )
     return session.exec(stmt).first()
+
+
+def build_evaluation_provider(settings):
+    if settings.evaluation_provider == "stub":
+        return StubEvaluationProvider()
+    if settings.evaluation_provider in {"command", "codex"}:
+        from jobharbor.agents.command_provider import CommandEvaluationProvider
+
+        if not settings.evaluation_command:
+            raise ValueError("evaluation_command is required for command/codex provider")
+        provider = CommandEvaluationProvider(
+            command=settings.evaluation_command,
+            timeout_seconds=settings.evaluation_timeout_seconds,
+        )
+        provider.provider_name = settings.evaluation_provider
+        return provider
+    raise ValueError(f"unsupported evaluation provider: {settings.evaluation_provider}")

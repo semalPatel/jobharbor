@@ -57,17 +57,26 @@ class EvaluationReportStageWorker:
         reports_dir: Path,
         provider: StubEvaluationProvider | None = None,
         renderer: ReportRenderer | None = None,
+        cv_path: Path | None = None,
+        profile_path: Path | None = None,
+        prompt_path: Path | None = None,
     ) -> None:
         self._session = session
         self._reports_dir = reports_dir
         self._provider = provider or StubEvaluationProvider()
         self._renderer = renderer or ReportRenderer()
+        self._cv_path = cv_path
+        self._profile_path = profile_path
+        self._prompt_path = prompt_path
 
     def run(self, context: dict[str, Any]) -> None:
         queued_items = context.get("queued_items")
         if not isinstance(queued_items, list):
             return
 
+        cv_text = _read_optional_text(self._cv_path)
+        profile_text = _read_optional_text(self._profile_path)
+        prompt_text = _read_optional_text(self._prompt_path)
         artifacts: list[dict[str, object]] = []
         for item in queued_items:
             if not isinstance(item, dict) or not isinstance(item.get("app_id"), int):
@@ -79,14 +88,31 @@ class EvaluationReportStageWorker:
             if job is None:
                 continue
 
-            result = self._provider.evaluate(application=application, job=job)
-            evaluation = store_evaluation(self._session, result=result, provider=self._provider.provider_name)
-            path = self._renderer.write(result, job_url=job.url, reports_dir=self._reports_dir)
-            artifact = Artifact(application_id=application.id, kind="report", path=str(path))
-            self._session.add(artifact)
-            self._session.commit()
-            self._session.refresh(artifact)
-            artifacts.append({"evaluation_id": evaluation.id, "artifact_id": artifact.id, "path": str(path)})
+            try:
+                result = self._provider.evaluate(
+                    application=application,
+                    job=job,
+                    cv_text=cv_text,
+                    profile_text=profile_text,
+                    prompt_text=prompt_text,
+                )
+                evaluation = store_evaluation(self._session, result=result, provider=self._provider.provider_name)
+                path = self._renderer.write(result, job_url=job.url, reports_dir=self._reports_dir)
+                artifact = Artifact(application_id=application.id, kind="report", path=str(path))
+                self._session.add(artifact)
+                self._session.commit()
+                self._session.refresh(artifact)
+                artifacts.append({"evaluation_id": evaluation.id, "artifact_id": artifact.id, "path": str(path)})
+            except Exception as exc:
+                self._session.rollback()
+                artifacts.append(
+                    {
+                        "application_id": application.id,
+                        "status": "failed",
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
 
         context["report_artifacts"] = artifacts
 
@@ -123,3 +149,9 @@ def evaluation_result_from_model(evaluation: Evaluation) -> EvaluationResult:
 def _slug(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "unknown"
+
+
+def _read_optional_text(path: Path | None) -> str:
+    if path is None or not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")

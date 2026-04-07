@@ -13,6 +13,7 @@ from jobharbor.notifications.email_fallback import EmailFallbackNotifier
 from jobharbor.notifications.push import PushNotifier
 from jobharbor.notifications.router import NotificationRouter
 from jobharbor.observability.metrics import MetricsRecorder
+from jobharbor.evaluation import build_evaluation_provider
 from jobharbor.reports import EvaluationReportStageWorker
 from jobharbor.services.pipeline import PipelineCoordinator, STAGE_ORDER, StageHandler
 from jobharbor.workers.dedupe_stage import DedupeStageWorker
@@ -117,9 +118,14 @@ def _make_queue_stage(*, session: Session) -> StageHandler:
 
 
 def _make_evaluate_stage(*, session: Session, settings: Settings) -> StageHandler:
+    paths = WorkspacePaths.from_settings(settings)
     worker = EvaluationReportStageWorker(
         session=session,
-        reports_dir=WorkspacePaths.from_settings(settings).reports_dir,
+        reports_dir=paths.reports_dir,
+        provider=build_evaluation_provider(settings),
+        cv_path=paths.cv_md,
+        profile_path=paths.profile_yml,
+        prompt_path=paths.prompts_dir / "evaluation.md",
     )
 
     def _stage(context: dict[str, Any]) -> None:
