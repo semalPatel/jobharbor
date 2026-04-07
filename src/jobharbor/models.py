@@ -82,6 +82,8 @@ class Application(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     job_id: int = Field(foreign_key="jobs.id", index=True)
     status: ApplicationStatus = Field(default=ApplicationStatus.drafting, index=True)
+    tracker_status: str | None = Field(default=None, index=True)
+    notes: str | None = None
 
 
 class RunLog(SQLModel, table=True):

@@ -79,7 +79,12 @@ def test_models_create_tables_and_round_trip_rows() -> None:
         session.commit()
         session.refresh(job)
 
-        application = Application(job_id=job.id, status=ApplicationStatus.ready_for_review)
+        application = Application(
+            job_id=job.id,
+            status=ApplicationStatus.ready_for_review,
+            tracker_status="Interview",
+            notes="Recruiter screen scheduled",
+        )
         run_log = RunLog(source="greenhouse", status=RunStatus.started)
         session.add(application)
         session.add(run_log)
@@ -100,6 +105,8 @@ def test_models_create_tables_and_round_trip_rows() -> None:
     assert saved_job.source_url == "https://example.com/jobs/1"
     assert saved_job.scan_query_name == "Greenhouse - AI"
     assert saved_application.status == ApplicationStatus.ready_for_review
+    assert saved_application.tracker_status == "Interview"
+    assert saved_application.notes == "Recruiter screen scheduled"
     assert saved_run_log.status == RunStatus.started
 
 

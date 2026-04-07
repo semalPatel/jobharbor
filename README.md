@@ -44,6 +44,15 @@ company entries with `api` or `http` scan methods feed the existing discovery
 connectors. Entries requiring `browser`, `search`, or `agent` capabilities are
 kept in the file but skipped until those capabilities are enabled.
 
+Export the career-ops-compatible tracker with:
+
+```bash
+jobharbor tracker
+jobharbor tracker show 42
+jobharbor tracker set-status 42 Applied
+jobharbor tracker note 42 "Applied via Greenhouse."
+```
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.
