@@ -28,7 +28,7 @@ class QueueStageWorker:
             if not source or not external_id:
                 continue
 
-            job = self._get_or_create_job(source=source, external_id=external_id)
+            job = self._get_or_create_job(item, source=source, external_id=external_id)
             app_id = self._enqueue_or_get_drafting(job_id=job.id)
             if app_id is None:
                 continue
@@ -37,13 +37,18 @@ class QueueStageWorker:
 
         context["queued_items"] = queued_items
 
-    def _get_or_create_job(self, *, source: str, external_id: str) -> Job:
+    def _get_or_create_job(self, item: dict[str, Any], *, source: str, external_id: str) -> Job:
         stmt = select(Job).where(Job.source == source, Job.external_id == external_id).limit(1)
         existing = self._session.exec(stmt).first()
         if existing is not None:
+            self._populate_job_details(existing, item)
+            self._session.add(existing)
+            self._session.commit()
+            self._session.refresh(existing)
             return existing
 
         job = Job(source=source, external_id=external_id, status=JobStatus.queued)
+        self._populate_job_details(job, item)
         self._session.add(job)
         self._session.commit()
         self._session.refresh(job)
@@ -65,3 +70,29 @@ class QueueStageWorker:
             )
             existing = self._session.exec(stmt).first()
             return None if existing is None else existing.id
+
+    def _populate_job_details(self, job: Job, item: dict[str, Any]) -> None:
+        for field_name in (
+            "title",
+            "company",
+            "url",
+            "location",
+            "posted_at",
+            "description",
+            "provider",
+            "source_url",
+            "scan_query_name",
+        ):
+            value = self._optional_text(item.get(field_name))
+            if value is not None:
+                setattr(job, field_name, value)
+        if job.provider is None:
+            job.provider = job.source
+        if job.source_url is None:
+            job.source_url = job.url
+
+    def _optional_text(self, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None

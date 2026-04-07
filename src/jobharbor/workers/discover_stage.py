@@ -128,6 +128,16 @@ class DiscoverStageWorker:
                     source=source,
                     external_id=external_id,
                     status=JobStatus.discovered,
+                    title=self._optional_text(job.get("title")),
+                    company=self._optional_text(job.get("company")),
+                    url=self._optional_text(job.get("url")),
+                    location=self._optional_text(job.get("location")),
+                    posted_at=self._optional_text(job.get("posted_at")),
+                    description=self._optional_text(job.get("description")),
+                    provider=self._optional_text(job.get("provider")) or source,
+                    source_url=self._optional_text(job.get("source_url")) or self._optional_text(job.get("url")),
+                    scan_query_name=self._optional_text(job.get("scan_query_name"))
+                    or self._optional_text(job.get("query_name")),
                 )
             )
             inserted += 1
@@ -138,6 +148,12 @@ class DiscoverStageWorker:
             self._session.rollback()
             raise
         return inserted
+
+    def _optional_text(self, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     def _build_connectors(
         self,

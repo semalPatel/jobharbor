@@ -67,7 +67,12 @@ resume_path: /Users/corrupt/Documents/resumes/resume_semal.pdf
         PrefillStageWorker(session=session, profile_path=profile_path).run(context)
 
         apps = list(session.exec(select(Application).order_by(Application.id)).all())
+        jobs = list(session.exec(select(Job).order_by(Job.id)).all())
         assert len(apps) == 1
+        assert len(jobs) == 1
+        assert jobs[0].title == "Senior Android Engineer"
+        assert jobs[0].url == "https://boards.greenhouse.io/acme/jobs/1"
+        assert jobs[0].provider == "greenhouse"
         assert all(app.status is ApplicationStatus.ready_for_review for app in apps)
 
         prefill_logs = list(

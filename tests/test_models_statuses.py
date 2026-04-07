@@ -61,7 +61,20 @@ def test_models_create_tables_and_round_trip_rows() -> None:
     assert RunLog.__tablename__ in created_tables
 
     with Session(engine) as session:
-        job = Job(source="greenhouse", external_id="gh-1", status=JobStatus.discovered)
+        job = Job(
+            source="greenhouse",
+            external_id="gh-1",
+            status=JobStatus.discovered,
+            title="AI Engineer",
+            company="Acme",
+            url="https://example.com/jobs/1",
+            location="Remote",
+            posted_at="2026-04-06",
+            description="Build AI systems",
+            provider="greenhouse",
+            source_url="https://example.com/jobs/1",
+            scan_query_name="Greenhouse - AI",
+        )
         session.add(job)
         session.commit()
         session.refresh(job)
@@ -77,6 +90,15 @@ def test_models_create_tables_and_round_trip_rows() -> None:
         saved_run_log = session.exec(select(RunLog)).one()
 
     assert saved_job.status == JobStatus.discovered
+    assert saved_job.title == "AI Engineer"
+    assert saved_job.company == "Acme"
+    assert saved_job.url == "https://example.com/jobs/1"
+    assert saved_job.location == "Remote"
+    assert saved_job.posted_at == "2026-04-06"
+    assert saved_job.description == "Build AI systems"
+    assert saved_job.provider == "greenhouse"
+    assert saved_job.source_url == "https://example.com/jobs/1"
+    assert saved_job.scan_query_name == "Greenhouse - AI"
     assert saved_application.status == ApplicationStatus.ready_for_review
     assert saved_run_log.status == RunStatus.started
 

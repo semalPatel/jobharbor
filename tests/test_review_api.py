@@ -31,7 +31,14 @@ def _seed_application(
     status: ApplicationStatus,
 ) -> Application:
     with Session(engine) as session:
-        job = Job(source=source, external_id=external_id)
+        job = Job(
+            source=source,
+            external_id=external_id,
+            title=f"{external_id} title",
+            company="Acme",
+            url=f"https://example.com/{external_id}",
+            location="Remote",
+        )
         session.add(job)
         session.commit()
         session.refresh(job)
@@ -63,7 +70,16 @@ def test_get_review_queue_returns_only_ready_for_review_items(
     response = get_review_queue(limit=50, offset=0, session=session)
 
     assert [row.model_dump(mode="json") for row in response] == [
-        {"id": 1, "job_id": 1, "status": "ready_for_review"},
+        {
+            "id": 1,
+            "job_id": 1,
+            "status": "ready_for_review",
+            "title": "gh-ready title",
+            "company": "Acme",
+            "url": "https://example.com/gh-ready",
+            "location": "Remote",
+            "source": "greenhouse",
+        },
     ]
 
 
@@ -99,8 +115,26 @@ def test_get_review_queue_supports_pagination_with_stable_id_ordering(
     response = get_review_queue(limit=2, offset=1, session=session)
 
     assert [row.model_dump(mode="json") for row in response] == [
-        {"id": second.id, "job_id": second.job_id, "status": "ready_for_review"},
-        {"id": third.id, "job_id": third.job_id, "status": "ready_for_review"},
+        {
+            "id": second.id,
+            "job_id": second.job_id,
+            "status": "ready_for_review",
+            "title": "gh-ready-2 title",
+            "company": "Acme",
+            "url": "https://example.com/gh-ready-2",
+            "location": "Remote",
+            "source": "greenhouse",
+        },
+        {
+            "id": third.id,
+            "job_id": third.job_id,
+            "status": "ready_for_review",
+            "title": "gh-ready-3 title",
+            "company": "Acme",
+            "url": "https://example.com/gh-ready-3",
+            "location": "Remote",
+            "source": "greenhouse",
+        },
     ]
     assert first.id < second.id < third.id
 
@@ -122,6 +156,11 @@ def test_post_submitted_transitions_application_to_submitted(
         "id": application.id,
         "job_id": application.job_id,
         "status": "submitted",
+        "title": "gh-ready-2 title",
+        "company": "Acme",
+        "url": "https://example.com/gh-ready-2",
+        "location": "Remote",
+        "source": "greenhouse",
     }
 
     with Session(engine) as session:

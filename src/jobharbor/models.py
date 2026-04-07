@@ -56,6 +56,15 @@ class Job(SQLModel, table=True):
     source: str = Field(index=True)
     external_id: str = Field(index=True)
     status: JobStatus = Field(default=JobStatus.discovered, index=True)
+    title: str | None = None
+    company: str | None = None
+    url: str | None = Field(default=None, index=True)
+    location: str | None = None
+    posted_at: str | None = None
+    description: str | None = None
+    provider: str | None = Field(default=None, index=True)
+    source_url: str | None = None
+    scan_query_name: str | None = None
 
 
 class Application(SQLModel, table=True):

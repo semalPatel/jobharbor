@@ -8,6 +8,7 @@ from sqlmodel import select
 
 from jobharbor.models import Application, ApplicationStatus, Job
 from jobharbor.repositories.application_repo import ApplicationRepository
+from jobharbor.workers.queue_stage import QueueStageWorker
 
 
 @pytest.fixture
@@ -202,3 +203,36 @@ def test_transition_commit_failure_rolls_back_and_session_remains_usable(
     current_active = session.get(Application, active.id)
     assert current_active is not None
     assert current_active.status == ApplicationStatus.drafting
+
+
+def test_queue_stage_creates_job_with_rich_fields(session: Session) -> None:
+    context = {
+        "eligible_jobs": [
+            {
+                "source": "greenhouse",
+                "external_id": "gh-rich",
+                "title": "AI Engineer",
+                "company": "Acme",
+                "url": "https://example.com/jobs/rich",
+                "location": "Remote",
+                "posted_at": "2026-04-06",
+                "description": "Build AI systems",
+                "provider": "greenhouse",
+                "source_url": "https://example.com/jobs/rich",
+                "scan_query_name": "Greenhouse - AI",
+            }
+        ]
+    }
+
+    QueueStageWorker(session=session).run(context)
+
+    job = session.exec(select(Job)).one()
+    assert job.title == "AI Engineer"
+    assert job.company == "Acme"
+    assert job.url == "https://example.com/jobs/rich"
+    assert job.location == "Remote"
+    assert job.posted_at == "2026-04-06"
+    assert job.description == "Build AI systems"
+    assert job.provider == "greenhouse"
+    assert job.source_url == "https://example.com/jobs/rich"
+    assert job.scan_query_name == "Greenhouse - AI"

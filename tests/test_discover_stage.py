@@ -54,6 +54,13 @@ def test_discover_stage_persists_feed_jobs_with_non_provider_urls() -> None:
         assert len(jobs) == 1
         assert jobs[0].source == "feed"
         assert jobs[0].external_id == "feed-1"
+        assert jobs[0].title == "Role A"
+        assert jobs[0].company == "X"
+        assert jobs[0].url == "https://example.com/jobs/1"
+        assert jobs[0].location == "Remote"
+        assert jobs[0].posted_at == "2026-03-14"
+        assert jobs[0].provider == "feed"
+        assert jobs[0].source_url == "https://example.com/jobs/1"
 
 
 def test_discover_stage_dedupes_existing_jobs() -> None:
