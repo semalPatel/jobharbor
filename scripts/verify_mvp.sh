@@ -2,36 +2,45 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PYTEST="${ROOT_DIR}/.venv/bin/pytest"
-PYTHON="${ROOT_DIR}/.venv/bin/python"
+UV_CACHE_DIR="${UV_CACHE_DIR:-${ROOT_DIR}/.uv-cache}"
+RUN=(env "UV_CACHE_DIR=${UV_CACHE_DIR}" uv run --python 3.12 --extra dev)
+SMOKE_HOME="$(mktemp -d)"
+SMOKE_DB="${SMOKE_HOME}/jobharbor.db"
 
-if [[ ! -x "${PYTEST}" ]]; then
-  echo "missing pytest executable at ${PYTEST}" >&2
-  exit 1
-fi
+cleanup() {
+  rm -rf "${SMOKE_HOME}"
+}
+trap cleanup EXIT
 
-if [[ ! -x "${PYTHON}" ]]; then
-  echo "missing python executable at ${PYTHON}" >&2
-  exit 1
-fi
+echo "[verify] full test suite"
+(cd "${ROOT_DIR}" && "${RUN[@]}" pytest -q)
 
-echo "[verify] unit tests"
-"${PYTEST}" -q tests/test_health.py tests/test_config.py tests/test_models_statuses.py
+echo "[verify] bootstrap smoke"
+(cd "${ROOT_DIR}" && env JOBHARBOR_HOME="${SMOKE_HOME}/workspace" DATABASE_URL="sqlite:///${SMOKE_DB}" "${RUN[@]}" jobharbor bootstrap)
 
-echo "[verify] pipeline smoke"
-"${PYTEST}" -q tests/test_pipeline_e2e_smoke.py
+echo "[verify] pipeline inbox smoke"
+(cd "${ROOT_DIR}" && env JOBHARBOR_HOME="${SMOKE_HOME}/workspace" DATABASE_URL="sqlite:///${SMOKE_DB}" "${RUN[@]}" jobharbor pipeline --limit 3 --concurrency 1)
 
-echo "[verify] api health"
-"${PYTHON}" - <<'PY'
-from fastapi.testclient import TestClient
+echo "[verify] tracker export smoke"
+(cd "${ROOT_DIR}" && env JOBHARBOR_HOME="${SMOKE_HOME}/workspace" DATABASE_URL="sqlite:///${SMOKE_DB}" "${RUN[@]}" jobharbor tracker)
 
-from jobharbor.main import app
+echo "[verify] dashboard render smoke"
+(cd "${ROOT_DIR}" && env JOBHARBOR_HOME="${SMOKE_HOME}/workspace" DATABASE_URL="sqlite:///${SMOKE_DB}" "${RUN[@]}" python - <<'PY'
+from sqlmodel import Session
 
-client = TestClient(app)
-response = client.get("/health")
-assert response.status_code == 200
-assert response.json() == {"ok": True}
-print("health check ok")
+from jobharbor.api.review import review_dashboard
+from jobharbor.db import get_engine, init_db
+from jobharbor.main import health
+
+assert health() == {"ok": True}
+engine = get_engine()
+init_db(engine=engine)
+with Session(engine) as session:
+    dashboard = review_dashboard(session=session)
+assert dashboard.status_code == 200
+assert "Jobharbor Review" in dashboard.body.decode("utf-8")
+print("dashboard render ok")
 PY
+)
 
 echo "[verify] all checks passed"
