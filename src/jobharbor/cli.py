@@ -4,12 +4,14 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from sqlmodel import Session
+
+from jobharbor.batch import BatchProcessor
 from jobharbor.config import Settings
 from jobharbor.db import get_engine, init_db
 from jobharbor.pipeline_inbox import PipelineInboxService
 from jobharbor.tracker import TrackerExportService, set_tracker_note, set_tracker_status
 from jobharbor.workspace import WorkspacePaths, bootstrap_workspace
-from sqlmodel import Session
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,6 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pipeline = subcommands.add_parser("pipeline", help="import and process data/pipeline.md")
     pipeline.add_argument("--limit", type=int, default=None, help="maximum pending items to process")
+    pipeline.add_argument("--concurrency", type=int, default=1, help="bounded processing concurrency")
     pipeline.add_argument("--sync-only", action="store_true", help="only import/export pipeline.md")
 
     return parser
@@ -98,9 +101,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 service.export_markdown()
                 print(f"Synced {len(imported)} pipeline item(s)")
                 return 0
-            processed = service.process_pending(reports_dir=paths.reports_dir, limit=args.limit)
+            result = BatchProcessor(pipeline_service=service, reports_dir=paths.reports_dir).run(
+                limit=args.limit,
+                concurrency=args.concurrency,
+            )
             TrackerExportService(session).export_applications(paths.applications_md)
-            print(f"Processed {len(processed)} pipeline item(s)")
+            print(f"Processed {len(result.processed)} pipeline item(s)")
             return 0
     raise SystemExit(f"unsupported command: {args.command}")
 

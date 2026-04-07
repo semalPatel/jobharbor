@@ -70,6 +70,7 @@ For a manual inbox flow, paste jobs into `data/pipeline.md` and run:
 
 ```bash
 jobharbor pipeline --limit 3
+jobharbor pipeline --limit 3 --concurrency 1
 jobharbor tracker
 ```
 
