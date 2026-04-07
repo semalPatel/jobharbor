@@ -1,7 +1,7 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 from jobharbor.api.review import get_review_applications, review_dashboard
-from jobharbor.models import Application, ApplicationStatus, Artifact, Job
+from jobharbor.models import Application, ApplicationStatus, Artifact, Evaluation, Job
 
 
 def test_review_applications_returns_artifact_paths() -> None:
@@ -25,12 +25,27 @@ def test_review_applications_returns_artifact_paths() -> None:
         session.refresh(application)
         session.add(Artifact(application_id=application.id, kind="report", path="/tmp/report.md"))
         session.add(Artifact(application_id=application.id, kind="pdf", path="/tmp/cv.pdf"))
+        session.add(
+            Evaluation(
+                application_id=application.id,
+                job_id=job.id,
+                score=4.2,
+                recommendation="apply",
+                summary="Strong fit",
+                payload_json="{}",
+                provider="stub",
+            )
+        )
         session.commit()
 
         rows = get_review_applications(session=session)
 
     assert rows[0].company == "Acme"
     assert rows[0].title == "AI Engineer"
+    assert rows[0].score == 4.2
+    assert rows[0].recommendation == "apply"
+    assert rows[0].execution_status == "ready_for_review"
+    assert rows[0].tracker_status == "Evaluated"
     assert rows[0].report == "/tmp/report.md"
     assert rows[0].pdf == "/tmp/cv.pdf"
 
@@ -54,3 +69,5 @@ def test_review_dashboard_renders_same_db_state() -> None:
     assert "Acme" in html
     assert "AI Engineer" in html
     assert "ready_for_review" in html
+    assert "Mark Applied" in html
+    assert "Discard" in html

@@ -6,7 +6,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine
 
-from jobharbor.api.review import get_review_queue, mark_submitted
+from jobharbor.api.review import ReviewNoteRequest, get_review_queue, mark_discarded, mark_submitted, update_note
 from jobharbor.models import Application, ApplicationStatus, Job
 
 
@@ -78,9 +78,14 @@ def test_get_review_queue_returns_only_ready_for_review_items(
             "company": "Acme",
             "url": "https://example.com/gh-ready",
             "location": "Remote",
+            "execution_status": "ready_for_review",
+            "tracker_status": "Evaluated",
+            "score": None,
+            "recommendation": None,
             "source": "greenhouse",
             "pdf": None,
             "report": None,
+            "notes": None,
         },
     ]
 
@@ -125,9 +130,14 @@ def test_get_review_queue_supports_pagination_with_stable_id_ordering(
             "company": "Acme",
             "url": "https://example.com/gh-ready-2",
             "location": "Remote",
+            "execution_status": "ready_for_review",
+            "tracker_status": "Evaluated",
+            "score": None,
+            "recommendation": None,
             "source": "greenhouse",
             "pdf": None,
             "report": None,
+            "notes": None,
         },
         {
             "id": third.id,
@@ -137,9 +147,14 @@ def test_get_review_queue_supports_pagination_with_stable_id_ordering(
             "company": "Acme",
             "url": "https://example.com/gh-ready-3",
             "location": "Remote",
+            "execution_status": "ready_for_review",
+            "tracker_status": "Evaluated",
+            "score": None,
+            "recommendation": None,
             "source": "greenhouse",
             "pdf": None,
             "report": None,
+            "notes": None,
         },
     ]
     assert first.id < second.id < third.id
@@ -166,9 +181,14 @@ def test_post_submitted_transitions_application_to_submitted(
         "company": "Acme",
         "url": "https://example.com/gh-ready-2",
         "location": "Remote",
+        "execution_status": "submitted",
+        "tracker_status": "Applied",
+        "score": None,
+        "recommendation": None,
         "source": "greenhouse",
         "pdf": None,
         "report": None,
+        "notes": None,
     }
 
     with Session(engine) as session:
@@ -206,3 +226,36 @@ def test_post_submitted_returns_409_for_invalid_transition_conflict(
 
     assert exc_info.value.status_code == 409
     assert "disallowed transition" in exc_info.value.detail
+
+
+def test_post_discarded_marks_application_abandoned(
+    session_with_db: tuple[Session, Engine],
+) -> None:
+    session, engine = session_with_db
+    application = _seed_application(
+        engine=engine,
+        source="greenhouse",
+        external_id="gh-ready-discard",
+        status=ApplicationStatus.ready_for_review,
+    )
+
+    response = mark_discarded(application.id, session=session)
+
+    assert response.status == ApplicationStatus.abandoned
+    assert response.tracker_status == "Discarded"
+
+
+def test_post_note_updates_application_notes(
+    session_with_db: tuple[Session, Engine],
+) -> None:
+    session, engine = session_with_db
+    application = _seed_application(
+        engine=engine,
+        source="greenhouse",
+        external_id="gh-ready-note",
+        status=ApplicationStatus.ready_for_review,
+    )
+
+    response = update_note(application.id, ReviewNoteRequest(note="Applied on company site"), session=session)
+
+    assert response.notes == "Applied on company site"
