@@ -117,3 +117,15 @@ class Artifact(SQLModel, table=True):
     kind: str = Field(index=True)
     path: str
     created_at: str | None = None
+
+
+class PipelineItem(SQLModel, table=True):
+    __tablename__ = "pipeline_items"
+
+    id: int | None = Field(default=None, primary_key=True)
+    url: str = Field(index=True, unique=True)
+    company: str | None = None
+    title: str | None = None
+    status: str = Field(default="pending", index=True)
+    source: str | None = None
+    application_id: int | None = Field(default=None, foreign_key="applications.id", index=True)

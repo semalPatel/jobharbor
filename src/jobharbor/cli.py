@@ -6,6 +6,7 @@ from typing import Sequence
 
 from jobharbor.config import Settings
 from jobharbor.db import get_engine, init_db
+from jobharbor.pipeline_inbox import PipelineInboxService
 from jobharbor.tracker import TrackerExportService, set_tracker_note, set_tracker_status
 from jobharbor.workspace import WorkspacePaths, bootstrap_workspace
 from sqlmodel import Session
@@ -37,6 +38,10 @@ def build_parser() -> argparse.ArgumentParser:
     note = tracker_subcommands.add_parser("note", help="replace tracker notes")
     note.add_argument("application_id", type=int)
     note.add_argument("note")
+
+    pipeline = subcommands.add_parser("pipeline", help="import and process data/pipeline.md")
+    pipeline.add_argument("--limit", type=int, default=None, help="maximum pending items to process")
+    pipeline.add_argument("--sync-only", action="store_true", help="only import/export pipeline.md")
 
     return parser
 
@@ -81,6 +86,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 service.export_applications(paths.applications_md)
                 print(f"Updated tracker note for application {args.application_id}")
                 return 0
+    if args.command == "pipeline":
+        settings = Settings()
+        paths = WorkspacePaths.from_settings(settings)
+        engine = get_engine(settings.database_url)
+        init_db(engine=engine)
+        with Session(engine) as session:
+            service = PipelineInboxService(session=session, path=paths.pipeline_md)
+            if args.sync_only:
+                imported = service.import_markdown()
+                service.export_markdown()
+                print(f"Synced {len(imported)} pipeline item(s)")
+                return 0
+            processed = service.process_pending(reports_dir=paths.reports_dir, limit=args.limit)
+            TrackerExportService(session).export_applications(paths.applications_md)
+            print(f"Processed {len(processed)} pipeline item(s)")
+            return 0
     raise SystemExit(f"unsupported command: {args.command}")
 
 

@@ -13,6 +13,7 @@ from jobharbor.models import (
     RunStatus,
     Evaluation,
     Artifact,
+    PipelineItem,
 )
 
 
@@ -52,6 +53,7 @@ def test_models_are_registered_in_sqlmodel_metadata() -> None:
     assert RunLog.__tablename__ in table_names
     assert Evaluation.__tablename__ in table_names
     assert Artifact.__tablename__ in table_names
+    assert PipelineItem.__tablename__ in table_names
 
 
 def test_models_create_tables_and_round_trip_rows() -> None:
@@ -65,6 +67,7 @@ def test_models_create_tables_and_round_trip_rows() -> None:
     assert RunLog.__tablename__ in created_tables
     assert Evaluation.__tablename__ in created_tables
     assert Artifact.__tablename__ in created_tables
+    assert PipelineItem.__tablename__ in created_tables
 
     with Session(engine) as session:
         job = Job(

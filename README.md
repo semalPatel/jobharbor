@@ -66,6 +66,16 @@ Jobharbor can also persist PDF artifacts through the local renderer interface.
 When a PDF artifact exists, `jobharbor tracker` links it from the `PDF` column;
 renderer failures leave existing reports and tracker rows intact.
 
+For a manual inbox flow, paste jobs into `data/pipeline.md` and run:
+
+```bash
+jobharbor pipeline --limit 3
+jobharbor tracker
+```
+
+Pipeline items are stored in the database, deduped by URL, processed into
+applications, and rewritten back to `data/pipeline.md` as processed rows.
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.
