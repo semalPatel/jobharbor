@@ -6,6 +6,7 @@ from typing import Sequence
 
 from sqlmodel import Session
 
+from jobharbor.apply_assist import ApplyAssistService
 from jobharbor.batch import BatchProcessor
 from jobharbor.config import Settings
 from jobharbor.db import get_engine, init_db
@@ -45,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
     pipeline.add_argument("--limit", type=int, default=None, help="maximum pending items to process")
     pipeline.add_argument("--concurrency", type=int, default=1, help="bounded processing concurrency")
     pipeline.add_argument("--sync-only", action="store_true", help="only import/export pipeline.md")
+
+    apply_assist = subcommands.add_parser("apply-assist", help="draft answers without submitting")
+    apply_assist.add_argument("application_id", type=int)
+    apply_assist.add_argument("--questions-file", type=Path, required=True)
 
     return parser
 
@@ -107,6 +112,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             TrackerExportService(session).export_applications(paths.applications_md)
             print(f"Processed {len(result.processed)} pipeline item(s)")
+            return 0
+    if args.command == "apply-assist":
+        settings = Settings()
+        engine = get_engine(settings.database_url)
+        init_db(engine=engine)
+        questions_text = args.questions_file.read_text(encoding="utf-8")
+        with Session(engine) as session:
+            fill_plan = ApplyAssistService(session=session).draft_answers(
+                application_id=args.application_id,
+                questions_text=questions_text,
+            )
+            print(fill_plan.to_payload())
             return 0
     raise SystemExit(f"unsupported command: {args.command}")
 

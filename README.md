@@ -77,6 +77,12 @@ jobharbor tracker
 Pipeline items are stored in the database, deduped by URL, processed into
 applications, and rewritten back to `data/pipeline.md` as processed rows.
 
+After a report exists, draft application answers without submitting:
+
+```bash
+jobharbor apply-assist 42 --questions-file questions.txt
+```
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.
