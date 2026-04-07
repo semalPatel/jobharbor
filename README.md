@@ -83,6 +83,10 @@ After a report exists, draft application answers without submitting:
 jobharbor apply-assist 42 --questions-file questions.txt
 ```
 
+The review API also exposes a lightweight dashboard at `/review/dashboard`.
+It reads the same database state as `jobharbor tracker` and links job, report,
+and PDF artifacts when available.
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.

@@ -79,6 +79,8 @@ def test_get_review_queue_returns_only_ready_for_review_items(
             "url": "https://example.com/gh-ready",
             "location": "Remote",
             "source": "greenhouse",
+            "pdf": None,
+            "report": None,
         },
     ]
 
@@ -124,6 +126,8 @@ def test_get_review_queue_supports_pagination_with_stable_id_ordering(
             "url": "https://example.com/gh-ready-2",
             "location": "Remote",
             "source": "greenhouse",
+            "pdf": None,
+            "report": None,
         },
         {
             "id": third.id,
@@ -134,6 +138,8 @@ def test_get_review_queue_supports_pagination_with_stable_id_ordering(
             "url": "https://example.com/gh-ready-3",
             "location": "Remote",
             "source": "greenhouse",
+            "pdf": None,
+            "report": None,
         },
     ]
     assert first.id < second.id < third.id
@@ -161,6 +167,8 @@ def test_post_submitted_transitions_application_to_submitted(
         "url": "https://example.com/gh-ready-2",
         "location": "Remote",
         "source": "greenhouse",
+        "pdf": None,
+        "report": None,
     }
 
     with Session(engine) as session:
