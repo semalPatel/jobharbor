@@ -9,6 +9,9 @@ foundation.
 This is a planning document only. It is intentionally not an implementation
 plan with code changes yet.
 
+For a no-context implementation handoff, use
+`docs/plans/2026-04-06-career-ops-hybrid-implementation.md`.
+
 ## Starting Point
 
 ### Jobharbor Today
