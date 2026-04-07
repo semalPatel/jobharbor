@@ -1,31 +1,33 @@
-# Ideal Discovery-to-Dashboard Implementation Plan
+# Ideal Jobharbor Career-Ops Implementation Plan
 
 ## Purpose
 
-This is the follow-on plan for turning the current career-ops hybrid foundation
-into the ideal user flow:
+This is the ready-to-implement plan for making Jobharbor work in the ideal way:
 
 ```text
-Jobharbor discovers jobs automatically
-  -> filters/dedupes/persists rich job details
-  -> queues promising opportunities
-  -> evaluates and creates report/PDF artifacts
-  -> exposes them in the career-ops workspace and review dashboard
-  -> user manually decides whether to apply
-  -> user marks lifecycle status after applying
+Automatic company/job discovery
+  -> DB-backed filtering, dedupe, queueing, evaluation, reports, PDFs
+  -> career-ops workspace artifacts for transparency
+  -> dashboard for review and lifecycle updates
+  -> user manually applies
+  -> user marks Applied/Submitted after the fact
 ```
 
-Important wording:
-
-- "Submitted applications" in the dashboard must mean applications the user has
-  manually marked as submitted/applied.
-- Jobharbor must never submit an application automatically.
-- The dashboard is a review/control surface, not a separate source of truth.
+This plan is intentionally specific. An implementation agent should be able to
+start at `Phase A` and work through the remaining phases without relying on
+prior chat context.
 
 ## Current Baseline
 
-As of branch `feat/mvp-greenhouse` after commit `bbf654d`, the following pieces
-exist:
+Repository:
+
+```text
+/home/dev/projects/jobharbor
+branch: feat/mvp-greenhouse
+latest known plan commit: d75c719 Document ideal discovery dashboard plan
+```
+
+Implemented foundation:
 
 - Workspace bootstrap:
   - `JOBHARBOR_HOME`
@@ -41,12 +43,20 @@ exist:
   - `jds/`
   - `prompts/`
   - `templates/`
-- Portal config foundation:
+- Portal config:
   - `src/jobharbor/portal_config.py`
   - provider inference for Greenhouse, Ashby, Lever, SmartRecruiters, Workable,
     custom, and unknown
-  - capability-gated skipping for browser/search/agent entries
-  - connector target extraction for supported providers
+  - scan-method normalization for `api`, `http`, `browser`, `search`, `agent`
+  - aliases for career-ops-style values such as `greenhouse_api`, `websearch`,
+    and `playwright`
+  - capability-gated skipping for unsupported entries
+- Discovery connectors currently active:
+  - Greenhouse
+  - Ashby
+  - Lever
+  - SmartRecruiters
+  - Y Combinator in the older fallback connector path
 - Rich job persistence:
   - `Job.title`
   - `Job.company`
@@ -63,9 +73,9 @@ exist:
   - `tracker set-status`
   - `tracker note`
   - deterministic `data/applications.md`
-  - lifecycle status separate from execution status
-- Reports/evaluation:
-  - structured `EvaluationResult`
+  - lifecycle status separate from `ApplicationStatus`
+- Evaluation/reporting:
+  - `EvaluationResult`
   - `Evaluation` table
   - `Artifact` table
   - deterministic stub provider
@@ -74,24 +84,24 @@ exist:
   - `EVALUATION_COMMAND`
   - `EVALUATION_TIMEOUT_SECONDS`
 - PDF artifacts:
-  - deterministic local PDF artifact writer
-  - PDF links in tracker when artifacts exist
+  - deterministic local PDF artifact renderer
+  - tracker PDF links when PDF artifacts exist
 - Pipeline inbox:
-  - `data/pipeline.md` parser/writer
+  - `data/pipeline.md`
   - `PipelineItem` table
   - `jobharbor pipeline --limit N --concurrency 1`
 - Apply assist:
   - `jobharbor apply-assist <application_id> --questions-file <path>`
   - appends `## Draft Application Answers` to reports
-  - fill plans always have `submit_allowed=false`
-- Review dashboard:
+  - `submit_allowed=false`
+- Dashboard/API:
   - `/review/applications`
   - `/review/dashboard`
-  - dashboard reads the same DB/artifact state as tracker
+  - dashboard reads DB/artifact state, not separate frontend state
 
-Current quality gate:
+Last known full quality gate:
 
-```text
+```bash
 env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q
 ```
 
@@ -101,16 +111,49 @@ Last known result:
 247 passed, 4 warnings
 ```
 
-## Target User Experience
+## Target Career-Ops Workspace Contract
 
-Fresh setup:
+The workspace is the human-readable surface. The DB remains authoritative for
+execution state.
+
+```text
+JOBHARBOR_HOME/
+  cv.md
+  config/profile.yml
+  portals.yml
+  data/applications.md
+  data/pipeline.md
+  data/scan-history.tsv
+  reports/
+  output/
+  jds/
+  prompts/
+  templates/
+```
+
+Career-ops compatibility requirements:
+
+- `cv.md` is the master CV text used by reports, PDF, and apply assist.
+- `config/profile.yml` is the user profile/rubric input.
+- `portals.yml` is the company and query catalog. Do not hardcode catalog data
+  in Python.
+- `data/applications.md` is deterministic tracker export, regenerated from DB.
+- `data/pipeline.md` is a manual URL inbox, backed by `PipelineItem` rows.
+- `data/scan-history.tsv` records transparent discovery outcomes and skip
+  reasons.
+- `reports/` stores evaluation and apply-assist markdown.
+- `output/` stores generated PDFs and future fill plans.
+
+## Ideal Runtime Flow
+
+### First-Time Setup
 
 ```bash
 cd /home/dev/projects/jobharbor
 export JOBHARBOR_HOME="$PWD/workspace"
 export JOBHARBOR_PROFILE_PATH="$JOBHARBOR_HOME/config/profile.yml"
 export DATABASE_URL="sqlite:///$PWD/jobharbor.db"
-uv run --python 3.12 --extra dev jobharbor bootstrap
+env UV_CACHE_DIR="$PWD/.uv-cache" uv run --python 3.12 --extra dev jobharbor bootstrap
 ```
 
 User edits:
@@ -121,185 +164,202 @@ $JOBHARBOR_HOME/config/profile.yml
 $JOBHARBOR_HOME/portals.yml
 ```
 
-Automatic mode:
+### Automatic Mode
 
 ```bash
-uv run --python 3.12 --extra dev uvicorn jobharbor.main:app --host 0.0.0.0 --port 8000
+env UV_CACHE_DIR="$PWD/.uv-cache" uv run --python 3.12 --extra dev uvicorn jobharbor.main:app --host 0.0.0.0 --port 8000
 ```
 
-Expected behavior:
+Expected automatic behavior:
 
-- Scheduler runs discovery on startup and interval.
-- `portals.yml` drives discovery.
-- Supported companies are fetched through real connectors.
-- Unsupported companies are skipped with durable reasons.
-- Promising jobs are queued as applications.
-- Reports and PDFs are generated.
-- Dashboard shows reviewable opportunities with job/report/PDF links.
-- User manually applies outside Jobharbor.
-- User marks applied/submitted through CLI or dashboard action.
+1. Scheduler starts.
+2. Scheduler runs one scan on startup and then on interval.
+3. Discovery reads `JOBHARBOR_HOME/portals.yml`.
+4. Supported portal entries fetch jobs through connectors.
+5. Unsupported/capability-gated entries are skipped with visible reasons.
+6. Jobs are deduped and filtered.
+7. Promising jobs become applications.
+8. Evaluations, reports, and PDFs are created.
+9. Tracker export and dashboard show the same DB-backed opportunities.
+10. User manually applies outside Jobharbor.
+11. User marks the application as Applied/Submitted.
 
-Manual inbox mode:
-
-```bash
-uv run --python 3.12 --extra dev jobharbor pipeline --limit 3
-uv run --python 3.12 --extra dev jobharbor tracker
-```
-
-Dashboard:
+### Dashboard
 
 ```text
 http://127.0.0.1:8000/review/dashboard
 ```
 
-The dashboard should let the user review:
+Dashboard must show:
 
-- discovered/queued opportunities
-- title/company/location/apply URL
+- application ID
+- company
+- role
+- job/apply URL
+- location
+- score
+- recommendation
+- execution status
+- lifecycle/tracker status
 - report link
 - PDF link
-- evaluation score/recommendation
-- lifecycle status
 - notes
 - actions that do not submit:
-  - mark Applied
+  - mark Applied/Submitted
   - mark Discarded
-  - add note
+  - update note
+  - open job URL
   - open report
-  - open apply URL
+  - open PDF
 
-## Non-Negotiable Product Rules
+### Manual Inbox Mode
 
-- Do not build spray-and-pray application automation.
-- Never submit a job application automatically.
-- Keep the user in the loop before application submission.
-- Keep the database authoritative for execution state.
-- Keep Markdown/YAML/TSV files as transparent user-facing workspace artifacts.
-- Keep agent usage optional and behind provider interfaces.
-- Do not make scheduled scans depend on an agent.
-- Do not hardcode the career-ops company list in Python.
-- `portals.yml` must be the company/catalog data source.
-- Dashboard must read DB/exported state, not introduce a separate state model.
-- Treat `ApplicationStatus.submitted` as user-confirmed submission only.
+```bash
+env UV_CACHE_DIR="$PWD/.uv-cache" uv run --python 3.12 --extra dev jobharbor pipeline --limit 3 --concurrency 1
+env UV_CACHE_DIR="$PWD/.uv-cache" uv run --python 3.12 --extra dev jobharbor tracker
+```
 
-## Remaining Gaps
+This remains useful for testing hand-picked jobs, but it is not the final ideal
+path. The final ideal path is automatic discovery into dashboard review.
 
-### Provider Gaps
+## Product Rules
 
-Currently active connector-backed providers:
+- Never submit an application automatically.
+- Never mark `ApplicationStatus.submitted` from discovery, evaluation, PDF, or
+  apply-assist automation.
+- Only explicit user actions can mark an application Applied/Submitted.
+- Keep DB authoritative for execution state.
+- Keep workspace files transparent and deterministic where possible.
+- Keep agent usage optional.
+- Scheduled scans must work without an agent.
+- Live network access must not be required by the default test suite.
+- Dashboard must not introduce a separate state model.
 
-- `greenhouse`
-- `ashby`
-- `lever`
-- `smartrecruiters`
+## Implementation Sequencing
 
-Recognized but not active as real connectors:
+Work in this order:
 
-- `workday`
-- `workable`
-- `custom`
-- `unknown`
+```text
+A. Company catalog import
+B. Provider completeness
+C. Scan history and skip reasons
+D. Automatic scan-to-dashboard E2E
+E. Dashboard review actions
+F. Runtime/demo gate
+G. Optional first-class agent provider
+```
 
-Capability-gated but not active:
+Commit at the end of each phase after its focused gate and the full gate pass.
 
-- `browser`
-- `search`
-- `agent`
+Full gate for every phase:
 
-Evaluation providers:
+```bash
+env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q
+```
 
-- `stub`: active default
-- `command`: active
-- `codex`: currently command-compatible alias requiring `EVALUATION_COMMAND`
-- `openai_api`: not implemented
+Before every commit:
 
-### Company Catalog Gap
+```bash
+rm -rf uv.lock src/jobharbor.egg-info jobharbor.db
+git status --short
+```
 
-The original plan called for porting:
+Do not commit generated local DBs, virtualenvs, or `uv.lock` unless the repo
+deliberately decides to adopt a lockfile.
 
-- 76 tracked-company presets
-- 19 search-query presets
-
-from `santifer/career-ops` `templates/portals.example.yml`.
-
-This has not been completed. The current `templates/portals.example.yml` has a
-valid representative subset and schema examples, not the full upstream catalog.
-
-Reason:
-
-- The raw upstream YAML was not cleanly available through the browsing tool
-  during earlier implementation.
-- Do not fabricate the 76-company catalog.
-- Use a clean source file before importing.
-
-## Phase A: Full Portal Catalog Import
+## Phase A: Full Company Catalog Import
 
 Goal:
 
-- Replace the representative `templates/portals.example.yml` with a complete,
-  validated, career-ops-derived catalog.
+- Make `templates/portals.example.yml` match the career-ops company/query
+  catalog while preserving Jobharbor's provider/capability model.
+
+Dependencies:
+
+- Clean source copy of `santifer/career-ops/templates/portals.example.yml`.
+- If using internet, use the raw GitHub file or a cloned repo. Do not scrape a
+  collapsed web preview into YAML.
 
 Files to modify:
 
 - `templates/portals.example.yml`
 - `tests/test_portal_config.py`
 - `tests/test_portal_provider_mapping.py`
+- optionally `docs/plans/2026-04-07-ideal-discovery-dashboard-plan.md` if source
+  counts differ from the historical 76/19 reference
 
 Implementation steps:
 
-1. Obtain a clean copy of `santifer/career-ops/templates/portals.example.yml`.
-2. Preserve source attribution in comments at the top of the local template.
-3. Normalize all entries to Jobharbor's schema:
+1. Fetch or copy the clean upstream YAML.
+2. Add a source comment at the top of `templates/portals.example.yml`:
+
+   ```yaml
+   # Adapted from santifer/career-ops templates/portals.example.yml.
+   # Jobharbor normalizes provider fields and capability-gates unsupported scan methods.
+   ```
+
+3. Normalize fields:
    - `api` -> `api_url`
-   - `websearch` -> `search`
    - `greenhouse_api` -> `api`
+   - `websearch` -> `search`
    - `playwright` -> `browser`
    - infer `provider`
    - infer `provider_slug`
    - infer or set `scan_method`
-4. Keep all `search`, `browser`, `agent`, `workday`, `workable`, and `custom`
-   entries disabled unless implemented in later phases.
-5. Enable connector-safe Greenhouse/Ashby/Lever/SmartRecruiters companies only
-   when:
-   - URL maps cleanly to a provider slug
-   - connector can fetch without browser/search/agent capability
-6. Add tests that assert:
-   - template loads
-   - no invalid provider values
-   - no invalid scan methods
-   - all enabled companies produce connector targets or explicit skip reasons
-   - catalog contains the expected company/query counts
+   - preserve notes when present
+4. Keep search/browser/agent entries disabled unless Phase B/C implements them.
+5. Enable only connector-safe companies where provider and slug are valid for:
+   - Greenhouse
+   - Ashby
+   - Lever
+   - SmartRecruiters
+6. Add tests:
+   - template loads with `load_portals_config`
+   - title filter loads
+   - expected number of tracked companies load
+   - expected number of search queries load
+   - every enabled company either produces a connector target or a skip reason
+   - no unknown provider values except explicit `unknown`
+   - no unknown scan methods
+   - at least one enabled company for each active supported provider, if present
+7. Run bootstrap test to ensure new users receive the full catalog.
 
-Quality gate:
+Focused gate:
 
 ```bash
-uv run --python 3.12 --extra dev pytest -q tests/test_portal_config.py tests/test_portal_provider_mapping.py
-uv run --python 3.12 --extra dev pytest -q
+env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q tests/test_portal_config.py tests/test_portal_provider_mapping.py tests/test_workspace.py tests/test_cli_bootstrap.py
 ```
 
 Acceptance:
 
-- `jobharbor bootstrap` creates a full, valid `portals.yml`.
-- Supported companies become connector targets.
-- Unsupported companies are retained but skipped safely.
-- No company catalog is hardcoded in Python.
+- `jobharbor bootstrap` creates a full career-ops-compatible `portals.yml`.
+- Supported companies feed connector targets.
+- Unsupported companies are preserved but disabled or skipped safely.
+- No catalog data is hardcoded in Python.
 
 ## Phase B: Provider Completeness
 
 Goal:
 
-- Expand real discovery coverage beyond the four currently active providers.
+- Make the catalog useful by adding real provider coverage where feasible.
 
-Recommended order:
+Provider status target:
 
-1. Workable
-2. Workday
-3. Search
-4. Browser
-5. Custom
-6. Agent-assisted discovery
+| Provider | Target behavior |
+| --- | --- |
+| `greenhouse` | Active connector; keep stable |
+| `ashby` | Active connector; keep stable |
+| `lever` | Active connector; keep stable |
+| `smartrecruiters` | Active connector; keep stable |
+| `workable` | Add connector if non-browser fetch path is stable |
+| `workday` | Keep skipped unless stable non-browser fetch path exists |
+| `custom` | Convert to pipeline/search/browser path, not ad hoc scraping |
+| `unknown` | Skip with reason |
+| `search` | Add explicit capability and query-driven discovery |
+| `browser` | Add explicit capability and bounded runtime |
+| `agent` | Optional, never required for scheduled scan |
 
-### Workable
+### Phase B1: Workable Connector
 
 Files to add:
 
@@ -311,98 +371,165 @@ Files to modify:
 - `src/jobharbor/workers/discover_stage.py`
 - `src/jobharbor/portal_config.py`
 - `src/jobharbor/services/auto_discovery.py`
+- `tests/test_discover_stage.py`
+- `tests/test_portal_config.py`
+
+Implementation steps:
+
+1. Implement a connector only if Workable exposes a stable JSON or HTML endpoint
+   that can be normalized without browser automation.
+2. Normalize to existing job dict shape:
+   - `external_id`
+   - `title`
+   - `company`
+   - `location`
+   - `url`
+   - `posted_at`
+   - `description`
+3. Add `workable` to connector target extraction and builder.
+4. Preserve partial failure semantics.
+5. Keep tests fixture-based, not live-network.
+
+Focused gate:
+
+```bash
+env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q tests/test_workable_parsing.py tests/test_discover_stage.py tests/test_portal_config.py
+```
 
 Acceptance:
 
-- `https://apply.workable.com/{slug}` entries fetch jobs through a connector.
-- Workable entries no longer skip solely because provider is unsupported.
-- Failure of one Workable company does not fail the whole scan.
+- Workable entries can produce jobs when fixture payloads are valid.
+- A failed Workable company does not fail the whole scan.
 
-### Workday
+### Phase B2: Workday Decision Gate
 
-Files to add:
+Files to add or modify only if implementation is viable:
 
 - `src/jobharbor/connectors/workday.py`
 - `tests/test_workday_parsing.py`
 
+Implementation steps:
+
+1. Determine whether configured Workday URLs can be fetched without browser
+   automation.
+2. If yes, implement connector with fixture tests.
+3. If no, keep Workday disabled/capability-gated and document reason in
+   `portals.yml` comments and scan history.
+
 Acceptance:
 
-- Workday entries stay skipped until a stable, non-browser fetch path is proven.
-- If Workday requires browser/runtime complexity, implement it under the
-  browser capability phase instead of scraping ad hoc.
+- Workday behavior is explicit: either real connector with tests or deterministic
+  skip reason.
 
-### Search
+### Phase B3: Search Capability
 
 Files to modify:
 
+- `src/jobharbor/portal_config.py`
 - `src/jobharbor/services/auto_discovery.py`
 - `src/jobharbor/workers/discover_stage.py`
-- `src/jobharbor/portal_config.py`
+- `tests/test_auto_discovery.py`
+- `tests/test_discover_stage.py`
+
+Implementation steps:
+
+1. Add an explicit setting for enabled capabilities, for example:
+
+   ```text
+   JOBHARBOR_DISCOVERY_CAPABILITIES=http,search
+   ```
+
+2. Load enabled `search_queries` only when `search` capability is present.
+3. Feed queries into the existing search fetcher or a new query-aware fetcher.
+4. Convert provider URLs into connector targets.
+5. Convert generic result URLs into `PipelineItem` rows if appropriate.
+6. Persist skip reasons when search is disabled.
+7. Keep search disabled by default.
 
 Acceptance:
 
-- `search_queries` from `portals.yml` drive search discovery when
-  `search` capability is enabled.
-- Search results become provider URLs or pending pipeline items.
-- Search is disabled by default unless explicitly configured.
-- Query failures are recorded in `data/scan-history.tsv` or run logs.
+- Search entries no longer need to be hardcoded.
+- Default tests do not call live search engines.
 
-### Browser
+### Phase B4: Browser Capability
 
-Files to modify or add:
+Files to modify:
 
 - `src/jobharbor/browser/playwright_session.py`
-- provider/browser adapters as needed
-- tests with fakes, not live browser network calls
+- `src/jobharbor/workers/discover_stage.py`
+- browser/provider adapters as needed
+
+Implementation steps:
+
+1. Add capability setting for `browser`.
+2. Keep browser disabled by default.
+3. Implement only bounded fetches with timeouts.
+4. Add tests with fake browser/session objects.
+5. Browser runtime failure must log/skip, not crash scheduled scan.
 
 Acceptance:
 
-- Browser-only companies are skipped unless browser capability is enabled.
-- Browser runtime failures do not break scheduled scans.
-- Browser fetches are bounded with timeouts.
+- Browser-only entries become actionable only when configured.
+- No default test requires a real browser.
 
 ## Phase C: Scan History and Skip Reasons
 
 Goal:
 
-- Make automatic discovery transparent enough to debug.
+- Make automatic discovery transparent enough to debug from workspace files.
 
-Files to add or modify:
+Files to add:
 
 - `src/jobharbor/scan_history.py`
-- `src/jobharbor/workers/discover_stage.py`
 - `tests/test_scan_history.py`
+
+Files to modify:
+
+- `src/jobharbor/workers/discover_stage.py`
+- `src/jobharbor/workspace.py` if path helpers need additions
+
+Data contract:
+
+```text
+url	first_seen	source	title	company	status	reason
+```
+
+Allowed statuses:
+
+- `added`
+- `skipped_title`
+- `skipped_dup`
+- `skipped_capability`
+- `failed_fetch`
+- `failed_parse`
 
 Implementation steps:
 
-1. Persist `data/scan-history.tsv` rows for:
-   - `added`
-   - `skipped_title`
-   - `skipped_dup`
-   - `skipped_capability`
-   - `failed_fetch`
-   - `failed_parse`
-2. Include:
-   - URL
-   - first_seen
-   - source
-   - title
-   - company
-   - status
-   - reason
-3. Keep DB authoritative for execution state.
-4. Keep TSV deterministic in tests.
+1. Implement a deterministic TSV writer/appender service.
+2. Write rows when:
+   - portal entry is skipped for missing capability
+   - job is inserted
+   - duplicate job is skipped
+   - fetch or parse fails in a controlled provider path
+3. Do not make TSV authoritative for execution state.
+4. Keep output stable in tests.
+
+Focused gate:
+
+```bash
+env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q tests/test_scan_history.py tests/test_discover_stage.py
+```
 
 Acceptance:
 
-- User can tell why a portal entry or job was skipped.
-- Capability-gated companies produce visible skip rows.
+- User can open `data/scan-history.tsv` and understand why entries were added or
+  skipped.
 
-## Phase D: Automated Scan-to-Review E2E
+## Phase D: Automatic Scan-to-Dashboard E2E
 
 Goal:
 
-- Prove the automatic path end to end without manual pipeline inbox input.
+- Prove the ideal automatic path without manual inbox input or live network.
 
 Files to add:
 
@@ -410,138 +537,197 @@ Files to add:
 
 Implementation steps:
 
-1. Build fake connectors for Greenhouse/Ashby/Lever/SmartRecruiters.
-2. Provide a temp `JOBHARBOR_HOME` with `portals.yml`.
-3. Run the pipeline with stub provider.
+1. Create a temp workspace with:
+   - `cv.md`
+   - `config/profile.yml`
+   - `portals.yml` containing supported companies
+2. Use fake connectors or monkeypatched connector builder.
+3. Run the pipeline through `PipelineCoordinator` or `run_scan_cycle` with test
+   settings.
 4. Assert:
-   - jobs persisted with rich details
+   - discovered jobs persisted with rich fields
    - applications created
    - evaluations created
-   - report artifacts created
-   - tracker export includes rows
-   - dashboard API includes the same applications
-   - no application is automatically marked submitted
+   - reports created
+   - PDFs created if included in automatic path, otherwise explicitly not part
+     of automatic scan
+   - tracker export includes application rows and report/PDF links
+   - dashboard API returns the same applications
+   - `ApplicationStatus.submitted` is not set automatically
+
+Focused gate:
+
+```bash
+env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q tests/test_auto_scan_to_dashboard_e2e.py
+```
 
 Acceptance:
 
-- A single test demonstrates the ideal automatic discovery path without live
-  network.
+- One test proves the ideal automatic scan-to-review-dashboard path.
 
-## Phase E: Dashboard Actions
+## Phase E: Dashboard Review Actions
 
 Goal:
 
-- Let the dashboard support the lifecycle actions needed for real review.
+- Make the dashboard a practical review surface for applications the user might
+  submit manually.
 
 Files to modify:
 
 - `src/jobharbor/api/review.py`
 - `tests/test_review_dashboard.py`
-- optionally small HTML templates if the inline HTML grows too large
+- optionally add `src/jobharbor/templates/` or static HTML rendering helpers if
+  inline HTML grows too large
 
 Implementation steps:
 
-1. Add dashboard-visible columns:
+1. Extend `/review/applications` response with:
    - application ID
    - company
    - role
-   - status
+   - job URL
+   - location
+   - execution status
    - tracker status
-   - score
+   - evaluation score
    - recommendation
-   - job/apply URL
-   - report link
-   - PDF link
+   - report path
+   - PDF path
    - notes
-2. Add API routes:
-   - mark applied/submitted
-   - mark discarded
-   - update note
-   - optionally re-export tracker
-3. Keep all actions explicit user actions.
-4. Do not implement automatic submission.
+2. Extend `/review/dashboard` table with the same fields.
+3. Add explicit user-action endpoints:
+   - `POST /review/{id}/submitted`
+   - `POST /review/{id}/discarded`
+   - `POST /review/{id}/note`
+4. Ensure dashboard actions update DB and regenerate tracker export if needed.
+5. Do not add a submit-application endpoint.
+6. Do not automate form submission.
+
+Focused gate:
+
+```bash
+env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q tests/test_review_dashboard.py tests/test_review_api.py tests/test_tracker_export.py
+```
 
 Acceptance:
 
-- User can review discovered opportunities in the dashboard.
-- User can mark a manually submitted application as Applied/Submitted.
-- Tracker and dashboard remain consistent.
+- User can review jobs and mark lifecycle outcomes in the dashboard.
+- Dashboard and `data/applications.md` remain consistent.
 
-## Phase F: Runtime Configuration and Deployment Gate
+## Phase F: Runtime and Demo Gate
 
 Goal:
 
-- Make it easy to see Jobharbor working without remembering many commands.
+- Make it easy to see Jobharbor working without remembering internal commands.
 
 Files to modify:
 
 - `README.md`
+- `scripts/verify_mvp.sh`
 - `docker-compose.yml`
 - `ops/systemd/jobharbor.service`
-- `scripts/verify_mvp.sh`
+- optionally `.env.example`
 
 Implementation steps:
 
-1. Document a one-command local demo.
-2. Add env examples:
+1. Add a documented local demo:
+
+   ```bash
+   export JOBHARBOR_HOME="$PWD/workspace"
+   export JOBHARBOR_PROFILE_PATH="$JOBHARBOR_HOME/config/profile.yml"
+   export DATABASE_URL="sqlite:///$PWD/jobharbor.db"
+   uv run --python 3.12 --extra dev jobharbor bootstrap
+   uv run --python 3.12 --extra dev jobharbor pipeline --limit 3
+   uv run --python 3.12 --extra dev jobharbor tracker
+   uv run --python 3.12 --extra dev uvicorn jobharbor.main:app --reload
+   ```
+
+2. Add automatic mode instructions for scheduler startup.
+3. Add env docs for:
    - `JOBHARBOR_HOME`
    - `DATABASE_URL`
    - `JOBHARBOR_CONFIG_PATH`
+   - `JOBHARBOR_PROFILE_PATH`
    - `EVALUATION_PROVIDER`
    - `EVALUATION_COMMAND`
    - `EVALUATION_TIMEOUT_SECONDS`
-3. Ensure container uses `/app/workspace`.
-4. Add verification script steps for:
-   - bootstrap
+   - discovery capabilities setting if added in Phase B
+4. Update `scripts/verify_mvp.sh` to run:
+   - full tests
+   - bootstrap smoke
    - pipeline inbox smoke
-   - tracker export
-   - dashboard endpoint
-5. Keep live network tests out of the default suite.
+   - tracker export smoke
+   - dashboard render smoke without starting live network discovery
+5. Ensure Docker uses `/app/workspace` for `JOBHARBOR_HOME`.
+
+Focused gate:
+
+```bash
+./scripts/verify_mvp.sh
+```
 
 Acceptance:
 
-- A user can clone, bootstrap, run, and open the dashboard with documented
-  commands.
-- CI/local default tests do not depend on live job boards or search engines.
+- A clean local demo works from documented commands.
+- A container deployment has a workspace mount/path.
+- Verification does not depend on live job boards.
 
-## Phase G: Optional Real Agent Provider
+## Phase G: Optional First-Class Agent Provider
 
 Goal:
 
-- Replace command-only Codex alias with a first-class Codex/OpenAI provider if
-  desired.
+- Replace the command-compatible `codex` alias with a first-class provider only
+  if needed.
 
-Important:
+Rules:
 
-- This phase should use official OpenAI documentation for current API details.
+- Use official OpenAI documentation for current API details.
 - Keep `stub` and `command` providers working.
+- Keep scheduled scans functional without an agent.
+- Strictly validate all provider output before persistence.
+- Provider failure must not mark anything submitted/applied.
+
+Files likely to add or modify:
+
+- `src/jobharbor/agents/codex_provider.py`
+- `src/jobharbor/agents/openai_provider.py` if using the OpenAI API
+- `tests/test_agent_codex_provider.py`
+- `tests/test_agent_command_provider.py`
+- `README.md`
 
 Acceptance:
 
-- Agent output is strictly validated before persistence.
-- Provider failure does not mark applications submitted.
-- Scheduled scans remain usable without an agent.
+- Agent-backed evaluation can be enabled explicitly.
+- Stub remains the default.
+- Invalid or missing agent output fails safely.
 
-## Final Acceptance: Ideal Scenario
+## Final Acceptance Checklist
 
 The ideal scenario is complete when all of these are true:
 
-1. `jobharbor bootstrap` creates a complete workspace with a full company
-   catalog.
-2. Automatic scheduler scan reads `portals.yml`.
-3. Supported companies are discovered through real connectors.
-4. Unsupported/capability-gated companies are skipped with visible reasons.
-5. Promising jobs become applications.
-6. Applications get evaluations, reports, and PDF artifacts.
-7. `jobharbor tracker` exports `data/applications.md` with links.
-8. `/review/dashboard` shows the same applications, reports, PDFs, and statuses.
-9. User can mark manually submitted applications as Applied/Submitted.
-10. Jobharbor never submits applications automatically.
-11. Full quality gate passes:
+1. `jobharbor bootstrap` creates a full career-ops-compatible workspace.
+2. `portals.yml` contains the complete normalized company/query catalog.
+3. Automatic scheduler scans read `portals.yml`.
+4. Supported companies produce connector jobs without manual URL paste.
+5. Unsupported/capability-gated companies are skipped with visible reasons.
+6. Rich jobs are persisted.
+7. Promising jobs become applications.
+8. Evaluations are persisted.
+9. Reports are written to `reports/`.
+10. PDFs are written to `output/` where configured.
+11. `jobharbor tracker` exports `data/applications.md` with report/PDF links.
+12. `/review/dashboard` shows the same DB-backed application state.
+13. Dashboard actions can mark manually applied jobs as submitted/applied.
+14. Apply assist can draft answers but cannot submit.
+15. No automation path submits applications.
+16. Full quality gate passes:
 
-```bash
-uv run --python 3.12 --extra dev pytest -q
-```
+    ```bash
+    env UV_CACHE_DIR=/home/dev/projects/jobharbor/.uv-cache uv run --python 3.12 --extra dev pytest -q
+    ```
 
-12. A documented local demo works from a clean workspace.
+17. Runtime/demo gate passes:
 
+    ```bash
+    ./scripts/verify_mvp.sh
+    ```
