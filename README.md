@@ -62,6 +62,10 @@ To use an external evaluator, set `EVALUATION_PROVIDER=command` and provide an
 EvaluationResult JSON on stdout. `EVALUATION_PROVIDER=stub` remains the default
 so scheduled scans can run without an agent.
 
+Jobharbor can also persist PDF artifacts through the local renderer interface.
+When a PDF artifact exists, `jobharbor tracker` links it from the `PDF` column;
+renderer failures leave existing reports and tracker rows intact.
+
 ## Homelab Deployment
 
 1. Copy `.env.example` to `.env`, fill credentials, and leave `DATABASE_URL` unset so Compose overrides it.

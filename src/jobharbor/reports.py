@@ -117,11 +117,11 @@ class EvaluationReportStageWorker:
         context["report_artifacts"] = artifacts
 
 
-def report_artifact_for_application(session: Session, application_id: int) -> Artifact | None:
+def report_artifact_for_application(session: Session, application_id: int, *, kind: str = "report") -> Artifact | None:
     stmt = (
         select(Artifact)
         .where(Artifact.application_id == application_id)
-        .where(Artifact.kind == "report")
+        .where(Artifact.kind == kind)
         .order_by(Artifact.id.desc())
         .limit(1)
     )

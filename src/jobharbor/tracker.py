@@ -115,18 +115,21 @@ class TrackerExportService:
             role="" if job is None else (job.title or ""),
             score="",
             status=tracker_status_for(application),
-            pdf="",
+            pdf=self._artifact_link(application, "pdf", "PDF"),
             report=self._report_link(application),
             notes=application.notes or "",
         )
 
     def _report_link(self, application: Application) -> str:
+        return self._artifact_link(application, "report", "Report")
+
+    def _artifact_link(self, application: Application, kind: str, label: str) -> str:
         if application.id is None:
             return ""
-        artifact = report_artifact_for_application(self._session, application.id)
+        artifact = report_artifact_for_application(self._session, application.id, kind=kind)
         if artifact is None:
             return ""
-        return f"[Report]({artifact.path})"
+        return f"[{label}]({artifact.path})"
 
 
 def tracker_status_for(application: Application) -> str:
