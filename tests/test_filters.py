@@ -157,6 +157,19 @@ def test_hard_filters_rejects_location_outside_allowed_keywords() -> None:
     assert decision.reason_code == REJECT_LOCATION_NOT_ALLOWED
 
 
+def test_hard_filters_allows_missing_location_when_location_policy_is_set() -> None:
+    policy = HardFilterPolicy(allowed_location_keywords={"remote", "new york"})
+    job = {
+        "title": "Backend Engineer",
+        "location": "",
+    }
+
+    decision = evaluate_hard_filters(job, policy=policy)
+
+    assert decision.passed is True
+    assert decision.reason_code == ALLOW
+
+
 def test_hard_filters_rejects_disallowed_work_auth() -> None:
     policy = HardFilterPolicy(allowed_work_auth={"us_authorized", "citizen"})
     job = {

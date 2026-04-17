@@ -57,8 +57,9 @@ def evaluate_hard_filters(job: Mapping[str, Any], *, policy: HardFilterPolicy) -
         return FilterDecision(passed=False, reason_code=REJECT_TITLE_BLACKLIST)
 
     allowed_locations = _normalize_terms(policy.allowed_location_keywords)
-    if allowed_locations and not _contains_any_phrase(
-        _tokenize(_as_text(job.get("location"))),
+    job_location = _as_text(job.get("location"))
+    if allowed_locations and job_location and not _contains_any_phrase(
+        _tokenize(job_location),
         allowed_locations,
     ):
         return FilterDecision(passed=False, reason_code=REJECT_LOCATION_NOT_ALLOWED)

@@ -1,0 +1,29 @@
+scan_interval_hours: 6
+include_domain_keywords:
+  - android
+  - mobile
+  - ios
+  - react native
+  - swift
+  - swiftui
+  - jetpack compose
+  - kotlin
+  - kmp
+  - mobile platform
+  - design system
+exclude_domain_keywords:
+  - contract
+  - qa
+  - sdet
+allowed_location_keywords:
+  - remote
+  - san francisco
+  - bay area
+connector_rollout:
+  - greenhouse
+  - ashby
+  - lever
+  - smartrecruiters
+discovery_capabilities:
+  - http
+  - search

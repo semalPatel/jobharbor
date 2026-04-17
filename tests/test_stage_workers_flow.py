@@ -94,3 +94,27 @@ def test_unknown_work_auth_is_allowed_when_policy_requires_work_auth() -> None:
     eligible = context["eligible_jobs"]
     assert isinstance(eligible, list)
     assert len(eligible) == 1
+
+
+def test_missing_location_is_allowed_when_policy_requires_location() -> None:
+    context = {
+        "discovered_jobs": [
+            {
+                "source": "greenhouse",
+                "external_id": "gh-missing-location",
+                "title": "Senior Android Engineer",
+                "description": "Kotlin role.",
+                "location": "",
+                "url": "https://boards.greenhouse.io/acme/jobs/2",
+                "posted_at": "2026-03-14",
+            },
+        ]
+    }
+
+    NormalizeStageWorker().run(context)
+    DedupeStageWorker().run(context)
+    ScoreStageWorker(settings=_Settings()).run(context)
+
+    eligible = context["eligible_jobs"]
+    assert isinstance(eligible, list)
+    assert len(eligible) == 1

@@ -1,0 +1,750 @@
+# Adapted from santifer/career-ops templates/portals.example.yml.
+# Jobharbor normalizes provider fields and capability-gates unsupported scan methods.
+title_filter:
+  positive:
+  - AI
+  - ML
+  - LLM
+  - Agent
+  - Agentic
+  - GenAI
+  - Generative AI
+  - NLP
+  - LLMOps
+  - MLOps
+  - Voice AI
+  - Conversational AI
+  - Speech
+  - KI
+  - Künstliche Intelligenz
+  - KI Engineer
+  - KI Trainer
+  - Dozent
+  - Weiterbildung
+  - Platform Engineer
+  - Solutions Architect
+  - Solutions Engineer
+  - Forward Deployed
+  - Deployed Engineer
+  - Customer Engineer
+  - Integration Engineer
+  - Product Manager
+  - Technical PM
+  - Automation
+  - Hyperautomation
+  - Low-Code
+  - No-Code
+  - GTM Engineer
+  - RevOps
+  - Business Systems
+  - Internal Tools
+  - Transformation
+  negative:
+  - Junior
+  - Intern
+  - .NET
+  - 'Java '
+  - iOS
+  - Android
+  - PHP
+  - Ruby
+  - Embedded
+  - Firmware
+  - FPGA
+  - ASIC
+  - Blockchain
+  - Web3
+  - Crypto
+  - Salesforce Admin
+  - 'SAP '
+  - Oracle EBS
+  - Mainframe
+  - COBOL
+  seniority_boost:
+  - Senior
+  - Staff
+  - Principal
+  - Lead
+  - Head
+  - Director
+search_queries:
+- name: Ashby — AI PM
+  query: site:jobs.ashbyhq.com "AI Product Manager" OR "Senior Product Manager AI" remote
+  enabled: false
+  requires:
+  - search
+- name: Ashby — Solutions Architect
+  query: site:jobs.ashbyhq.com "Solutions Architect" AI OR automation remote
+  enabled: false
+  requires:
+  - search
+- name: Ashby — AI Engineer
+  query: site:jobs.ashbyhq.com "AI Engineer" OR "LLM Engineer" OR "Forward Deployed" remote
+  enabled: false
+  requires:
+  - search
+- name: Ashby — Agentic
+  query: site:jobs.ashbyhq.com "Agentic" OR "AI Agent" OR "Automation Architect" remote
+  enabled: false
+  requires:
+  - search
+- name: Greenhouse — AI PM
+  query: site:boards.greenhouse.io OR site:job-boards.greenhouse.io "AI Product Manager" OR "Senior Product Manager" AI remote
+  enabled: false
+  requires:
+  - search
+- name: Greenhouse — SA & FDE
+  query: site:boards.greenhouse.io OR site:job-boards.greenhouse.io "Solutions Architect" OR "Forward Deployed" AI remote
+  enabled: false
+  requires:
+  - search
+- name: Greenhouse — AI Engineer
+  query: site:boards.greenhouse.io OR site:job-boards.greenhouse.io "AI Engineer" OR "LLM" OR "Agentic" remote
+  enabled: false
+  requires:
+  - search
+- name: Lever — AI PM
+  query: site:jobs.lever.co "AI Product Manager" OR "Solutions Architect" AI remote
+  enabled: false
+  requires:
+  - search
+- name: Lever — AI Roles
+  query: site:jobs.lever.co "AI Engineer" OR "Agentic" OR "LLMOps" OR "Automation" remote
+  enabled: false
+  requires:
+  - search
+- name: Wellfound — AI PM
+  query: site:wellfound.com "AI Product Manager" OR "AI Solutions" remote
+  enabled: false
+  requires:
+  - search
+- name: Workable — AI Roles
+  query: site:apply.workable.com "AI" "Product Manager" OR "Solutions Architect" OR "AI Engineer" remote
+  enabled: false
+  requires:
+  - search
+- name: Ashby — No-Code & Automation
+  query: site:jobs.ashbyhq.com "no-code" OR "low-code" OR "automation engineer" OR "n8n" OR "Make" OR "Airtable" remote senior
+  enabled: false
+  requires:
+  - search
+- name: Greenhouse — No-Code & Automation
+  query: site:job-boards.greenhouse.io "no-code" OR "low-code" OR "automation engineer" OR "business systems" senior remote
+  enabled: false
+  requires:
+  - search
+- name: GTM Engineer — All portals
+  query: '"GTM Engineer" OR "RevOps Engineer" OR "Growth Engineer" automation Airtable OR Make OR Clay remote'
+  enabled: false
+  requires:
+  - search
+- name: Voice AI — FDE & SA
+  query: site:job-boards.greenhouse.io OR site:jobs.ashbyhq.com "Voice AI" OR "Conversational AI" OR "Speech" "Solutions" OR "Forward Deployed" OR "Customer Engineer"
+  enabled: false
+  requires:
+  - search
+- name: Voice AI — AI Engineer
+  query: site:job-boards.greenhouse.io OR site:jobs.ashbyhq.com "Voice" OR "Speech" "AI Engineer" OR "Deployment" OR "Integration"
+  enabled: false
+  requires:
+  - search
+- name: Contact Center AI — SA & SE
+  query: '"contact center" OR "customer service" "AI" "Solutions Architect" OR "Solutions Engineer" OR "Forward Deployed" remote'
+  enabled: false
+  requires:
+  - search
+- name: FDE & Deployed Engineer — All portals
+  query: '"Forward Deployed Engineer" OR "Deployed Engineer" OR "Deployment Engineer" AI site:job-boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co'
+  enabled: false
+  requires:
+  - search
+- name: RemoteFront — AI & Automation
+  query: site:remotefront.com "AI Engineer" OR "Solutions Engineer" OR "Automation" OR "LLM" OR "Agent" remote
+  enabled: false
+  requires:
+  - search
+tracked_companies:
+- name: Anthropic
+  careers_url: https://job-boards.greenhouse.io/anthropic
+  enabled: true
+  provider: greenhouse
+  provider_slug: anthropic
+  api_url: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
+  scan_method: api
+- name: OpenAI
+  careers_url: https://openai.com/careers
+  scan_method: search
+  scan_query: site:openai.com/careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  enabled: true
+  provider: custom
+  notes: 'Unsupported or capability-gated provider: custom.'
+- name: PolyAI
+  careers_url: https://job-boards.eu.greenhouse.io/polyai
+  notes: UK. Voice AI for enterprise contact centers.
+  enabled: true
+  provider: greenhouse
+  provider_slug: polyai
+  api_url: https://boards-api.greenhouse.io/v1/boards/polyai/jobs
+  scan_method: api
+- name: Parloa
+  careers_url: https://job-boards.eu.greenhouse.io/parloa
+  notes: Berlin EMEA. Voice AI enterprise.
+  enabled: true
+  provider: greenhouse
+  provider_slug: parloa
+  api_url: https://boards-api.greenhouse.io/v1/boards/parloa/jobs
+  scan_method: api
+- name: Intercom
+  careers_url: https://job-boards.greenhouse.io/intercom
+  notes: Dublin EMEA. Fin AI agent.
+  enabled: true
+  provider: greenhouse
+  provider_slug: intercom
+  api_url: https://boards-api.greenhouse.io/v1/boards/intercom/jobs
+  scan_method: api
+- name: Hume AI
+  careers_url: https://job-boards.greenhouse.io/humeai
+  notes: NYC. Empathic voice AI.
+  enabled: true
+  provider: greenhouse
+  provider_slug: humeai
+  api_url: https://boards-api.greenhouse.io/v1/boards/humeai/jobs
+  scan_method: api
+- name: ElevenLabs
+  careers_url: https://jobs.ashbyhq.com/elevenlabs
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/elevenlabs
+  notes: Voice AI TTS leader.
+  enabled: true
+  provider: ashby
+  provider_slug: elevenlabs
+- name: Deepgram
+  careers_url: https://jobs.ashbyhq.com/deepgram
+  scan_method: http
+  scan_query: site:deepgram.com/careers OR "deepgram" "Solutions" OR "AI Engineer" site:jobs.ashbyhq.com
+  notes: STT/TTS APIs.
+  enabled: true
+  provider: ashby
+  provider_slug: deepgram
+- name: Vapi
+  careers_url: https://jobs.ashbyhq.com/vapi
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/vapi
+  notes: Voice AI infrastructure.
+  enabled: true
+  provider: ashby
+  provider_slug: vapi
+- name: Bland AI
+  careers_url: https://jobs.ashbyhq.com/bland
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/bland
+  notes: Voice phone agents. $65M Series B.
+  enabled: true
+  provider: ashby
+  provider_slug: bland
+- name: Retool
+  careers_url: https://retool.com/careers
+  scan_method: search
+  scan_query: site:retool.com/careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'London. Popularized Deployed Engineer role. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Airtable
+  careers_url: https://job-boards.greenhouse.io/airtable
+  notes: No-code + AI platform.
+  enabled: true
+  provider: greenhouse
+  provider_slug: airtable
+  api_url: https://boards-api.greenhouse.io/v1/boards/airtable/jobs
+  scan_method: api
+- name: Vercel
+  careers_url: https://job-boards.greenhouse.io/vercel
+  notes: AI SDK, v0.dev. Frontend AI tooling.
+  enabled: true
+  provider: greenhouse
+  provider_slug: vercel
+  api_url: https://boards-api.greenhouse.io/v1/boards/vercel/jobs
+  scan_method: api
+- name: Temporal
+  careers_url: https://job-boards.greenhouse.io/temporal
+  notes: Workflow orchestration.
+  enabled: true
+  provider: greenhouse
+  provider_slug: temporal
+  api_url: https://boards-api.greenhouse.io/v1/boards/temporal/jobs
+  scan_method: api
+- name: Arize AI
+  careers_url: https://job-boards.greenhouse.io/arizeai
+  notes: LLMOps / AI observability.
+  enabled: true
+  provider: greenhouse
+  provider_slug: arizeai
+  api_url: https://boards-api.greenhouse.io/v1/boards/arizeai/jobs
+  scan_method: api
+- name: RunPod
+  careers_url: https://job-boards.greenhouse.io/runpod
+  notes: GPU cloud for AI.
+  enabled: true
+  provider: greenhouse
+  provider_slug: runpod
+  api_url: https://boards-api.greenhouse.io/v1/boards/runpod/jobs
+  scan_method: api
+- name: Glean
+  careers_url: https://job-boards.greenhouse.io/gleanwork
+  notes: Enterprise AI search.
+  enabled: true
+  provider: greenhouse
+  provider_slug: gleanwork
+  api_url: https://boards-api.greenhouse.io/v1/boards/gleanwork/jobs
+  scan_method: api
+- name: Ada
+  careers_url: https://job-boards.greenhouse.io/ada
+  scan_method: http
+  scan_query: '"ada.cx" OR "ada" "AI" "Solutions" OR "Engineer" site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io'
+  notes: Toronto + remote. AI customer service.
+  enabled: true
+  provider: greenhouse
+  provider_slug: ada
+- name: LivePerson
+  careers_url: https://liveperson.com/company/careers
+  scan_method: search
+  scan_query: site:liveperson.com/careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Remote EMEA. Conversational AI enterprise. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Sierra
+  careers_url: https://jobs.ashbyhq.com/sierra
+  scan_method: http
+  scan_query: '"sierra.ai" "AI" "Forward Deployed" OR "Applied" OR "Solutions" site:jobs.ashbyhq.com'
+  notes: Bret Taylor (ex-CEO Salesforce). AI customer agents.
+  enabled: true
+  provider: ashby
+  provider_slug: sierra
+- name: Decagon
+  careers_url: https://jobs.ashbyhq.com/decagon
+  scan_method: http
+  scan_query: '"decagon" "AI" "Forward Deployed" OR "Solutions" site:jobs.ashbyhq.com'
+  notes: AI customer support agents.
+  enabled: true
+  provider: ashby
+  provider_slug: decagon
+- name: Talkdesk
+  careers_url: https://www.talkdesk.com/careers
+  scan_method: search
+  scan_query: site:talkdesk.com/careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Lisbon. Contact center AI. EMEA friendly. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Twilio
+  careers_url: https://www.twilio.com/en-us/company/jobs
+  scan_method: search
+  scan_query: site:twilio.com/company/jobs ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Voice/messaging infrastructure. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Dialpad
+  careers_url: https://www.dialpad.com/careers
+  scan_method: search
+  scan_query: '"dialpad" ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")'
+  notes: 'Voice AI for business comms. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Gong
+  careers_url: https://www.gong.io/careers
+  scan_method: search
+  scan_query: site:gong.io/careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Revenue intelligence with voice AI. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Genesys
+  careers_url: https://www.genesys.com/careers
+  scan_method: search
+  scan_query: site:genesys.com/careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Contact center cloud + AI. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Salesforce
+  careers_url: https://careers.salesforce.com
+  scan_method: search
+  scan_query: site:careers.salesforce.com ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Agentforce = AI agents platform. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Langfuse
+  careers_url: https://langfuse.com/careers
+  scan_method: search
+  scan_query: '"langfuse" careers jobs ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")'
+  notes: 'Berlin. LLMOps / observability. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Lindy
+  careers_url: https://jobs.ashbyhq.com/lindy
+  scan_method: http
+  scan_query: '"lindy.ai" "AI" "Forward Deployed" OR "Solutions" site:jobs.ashbyhq.com'
+  notes: AI agent management platform.
+  enabled: true
+  provider: ashby
+  provider_slug: lindy
+- name: Cognigy
+  careers_url: https://careers.cognigy.com
+  scan_method: search
+  scan_query: '"cognigy" careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")'
+  notes: 'Dusseldorf EMEA. Conversational AI enterprise. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Speechmatics
+  careers_url: https://job-boards.greenhouse.io/speechmatics
+  notes: Cambridge UK. Speech recognition platform.
+  enabled: true
+  provider: greenhouse
+  provider_slug: speechmatics
+  api_url: https://boards-api.greenhouse.io/v1/boards/speechmatics/jobs
+  scan_method: api
+- name: n8n
+  careers_url: https://jobs.ashbyhq.com/n8n
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/n8n
+  notes: Berlin + remote EU/US. Workflow automation.
+  enabled: true
+  provider: ashby
+  provider_slug: n8n
+- name: Zapier
+  careers_url: https://jobs.ashbyhq.com/zapier
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/zapier
+  notes: Remote-first. Automation platform leader.
+  enabled: true
+  provider: ashby
+  provider_slug: zapier
+- name: Make.com (Celonis)
+  careers_url: https://www.make.com/en/careers
+  scan_method: search
+  scan_query: site:make.com/en/careers ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Celonis parent company. Automation platform. Unsupported or capability-gated provider: custom.'
+  enabled: true
+  provider: custom
+- name: Cohere
+  careers_url: https://jobs.ashbyhq.com/cohere
+  notes: AI/LLM provider. Toronto + remote.
+  enabled: true
+  provider: ashby
+  provider_slug: cohere
+  scan_method: http
+- name: LangChain
+  careers_url: https://jobs.ashbyhq.com/langchain
+  notes: LangChain/LangSmith framework.
+  enabled: true
+  provider: ashby
+  provider_slug: langchain
+  scan_method: http
+- name: Pinecone
+  careers_url: https://jobs.ashbyhq.com/pinecone
+  notes: Vector database.
+  enabled: true
+  provider: ashby
+  provider_slug: pinecone
+  scan_method: http
+- name: Mistral AI
+  careers_url: https://jobs.lever.co/mistral
+  notes: Paris. European AI lab.
+  enabled: true
+  provider: lever
+  provider_slug: mistral
+  scan_method: http
+- name: Weights & Biases
+  careers_url: https://jobs.lever.co/wandb
+  notes: MLOps platform.
+  enabled: true
+  provider: lever
+  provider_slug: wandb
+  scan_method: http
+- name: Palantir
+  careers_url: https://jobs.lever.co/palantir
+  notes: FDE roles. Mostly US/London.
+  enabled: true
+  provider: lever
+  provider_slug: palantir
+  scan_method: http
+- name: Factorial
+  careers_url: https://job-boards.greenhouse.io/factorial
+  scan_method: http
+  scan_query: site:jobs.greenhouse.io/factorial
+  notes: Barcelona. HR SaaS unicorn.
+  enabled: true
+  provider: greenhouse
+  provider_slug: factorial
+- name: Attio
+  careers_url: https://jobs.ashbyhq.com/attio
+  scan_method: http
+  scan_query: site:attio.com/careers OR site:jobs.ashbyhq.com/attio
+  notes: Remote EU. AI-native CRM. Series B $52M.
+  enabled: true
+  provider: ashby
+  provider_slug: attio
+- name: Tinybird
+  careers_url: https://jobs.ashbyhq.com/tinybird
+  scan_method: http
+  scan_query: site:tinybird.co/careers OR site:jobs.ashbyhq.com/tinybird
+  notes: Remote. Real-time data platform.
+  enabled: true
+  provider: ashby
+  provider_slug: tinybird
+- name: Clarity AI
+  careers_url: https://jobs.lever.co/clarity-ai
+  scan_method: http
+  scan_query: site:clarity.ai/careers OR site:jobs.lever.co/clarity-ai
+  notes: Madrid/Remote. Sustainability analytics with AI.
+  enabled: true
+  provider: lever
+  provider_slug: clarity-ai
+- name: Travelperk
+  careers_url: https://jobs.ashbyhq.com/travelperk
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/travelperk
+  notes: Barcelona. Business travel unicorn.
+  enabled: true
+  provider: ashby
+  provider_slug: travelperk
+- name: Aleph Alpha
+  careers_url: https://jobs.ashbyhq.com/AlephAlpha
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/AlephAlpha
+  notes: Heidelberg DE. Sovereign European LLM provider, enterprise & government focus.
+  enabled: true
+  provider: ashby
+  provider_slug: AlephAlpha
+- name: DeepL
+  careers_url: https://jobs.ashbyhq.com/DeepL
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/DeepL
+  notes: Cologne DE. Translation & language AI. 60+ open roles, EU/DACH heavy.
+  enabled: true
+  provider: ashby
+  provider_slug: DeepL
+- name: Black Forest Labs
+  careers_url: https://job-boards.greenhouse.io/blackforestlabs
+  notes: Freiburg DE / SF. FLUX image models, ex-Stable Diffusion team.
+  enabled: true
+  provider: greenhouse
+  provider_slug: blackforestlabs
+  api_url: https://boards-api.greenhouse.io/v1/boards/blackforestlabs/jobs
+  scan_method: api
+- name: Helsing
+  careers_url: https://job-boards.greenhouse.io/helsing
+  notes: Munich / Berlin / London / Paris. Defence AI unicorn. 100+ roles, ML & FDE.
+  enabled: true
+  provider: greenhouse
+  provider_slug: helsing
+  api_url: https://boards-api.greenhouse.io/v1/boards/helsing/jobs
+  scan_method: api
+- name: Celonis
+  careers_url: https://job-boards.greenhouse.io/celonis
+  notes: Munich / NYC. Process intelligence, Applied AI Engineer roles, Field CTOs.
+  enabled: true
+  provider: greenhouse
+  provider_slug: celonis
+  api_url: https://boards-api.greenhouse.io/v1/boards/celonis/jobs
+  scan_method: api
+- name: Contentful
+  careers_url: https://job-boards.greenhouse.io/contentful
+  notes: Berlin / Denver. Headless CMS, AI content workflows.
+  enabled: true
+  provider: greenhouse
+  provider_slug: contentful
+  api_url: https://boards-api.greenhouse.io/v1/boards/contentful/jobs
+  scan_method: api
+- name: GetYourGuide
+  careers_url: https://job-boards.greenhouse.io/getyourguide
+  notes: Berlin. Travel marketplace, ML & data platform roles.
+  enabled: true
+  provider: greenhouse
+  provider_slug: getyourguide
+  api_url: https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs
+  scan_method: api
+- name: HelloFresh
+  careers_url: https://job-boards.greenhouse.io/hellofresh
+  notes: Berlin. Meal kit unicorn, large data/ML org.
+  enabled: true
+  provider: greenhouse
+  provider_slug: hellofresh
+  api_url: https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs
+  scan_method: api
+- name: N26
+  careers_url: https://job-boards.greenhouse.io/n26
+  notes: Berlin / Barcelona. Mobile bank, ~50 roles, ML & risk.
+  enabled: true
+  provider: greenhouse
+  provider_slug: n26
+  api_url: https://boards-api.greenhouse.io/v1/boards/n26/jobs
+  scan_method: api
+- name: Trade Republic
+  careers_url: https://job-boards.greenhouse.io/traderepublicbank
+  notes: Berlin / London / Paris. Neobroker, ~50 roles, platform & data.
+  enabled: true
+  provider: greenhouse
+  provider_slug: traderepublicbank
+  api_url: https://boards-api.greenhouse.io/v1/boards/traderepublicbank/jobs
+  scan_method: api
+- name: SumUp
+  careers_url: https://job-boards.greenhouse.io/sumup
+  notes: Berlin / London. Payments fintech, EU + LATAM hiring.
+  enabled: true
+  provider: greenhouse
+  provider_slug: sumup
+  api_url: https://boards-api.greenhouse.io/v1/boards/sumup/jobs
+  scan_method: api
+- name: Qonto
+  careers_url: https://jobs.lever.co/qonto
+  notes: Paris / Berlin / Barcelona / Milan. SMB neobank, MLOps for AI Product roles.
+  enabled: true
+  provider: lever
+  provider_slug: qonto
+  scan_method: http
+- name: Forto
+  careers_url: https://jobs.lever.co/forto
+  notes: Berlin DE. Digital freight forwarder, product & data roles, German + English.
+  enabled: true
+  provider: lever
+  provider_slug: forto
+  scan_method: http
+- name: Lakera
+  careers_url: https://jobs.ashbyhq.com/lakera.ai
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/lakera.ai
+  notes: Zurich CH / SF. AI security & guardrails. Has Forward Deployed Engineer roles.
+  enabled: true
+  provider: ashby
+  provider_slug: lakera.ai
+- name: Scandit
+  careers_url: https://job-boards.greenhouse.io/scandit
+  notes: Zurich CH. Computer vision / smart data capture, ML roles.
+  enabled: true
+  provider: greenhouse
+  provider_slug: scandit
+  api_url: https://boards-api.greenhouse.io/v1/boards/scandit/jobs
+  scan_method: api
+- name: Cradle
+  careers_url: https://jobs.ashbyhq.com/cradlebio
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/cradlebio
+  notes: Zurich CH / Amsterdam. AI-guided protein design, ML researcher roles.
+  enabled: true
+  provider: ashby
+  provider_slug: cradlebio
+- name: Hugging Face
+  careers_url: https://apply.workable.com/huggingface/
+  scan_method: search
+  scan_query: site:apply.workable.com/huggingface ("Android" OR "iOS" OR "Mobile" OR "Software Engineer, Android" OR "Mobile Engineer")
+  notes: 'Paris / NYC / Remote. ML hub & open-source models. Unsupported or capability-gated provider: workable.'
+  enabled: true
+  provider: workable
+  provider_slug: huggingface
+- name: Photoroom
+  careers_url: https://jobs.ashbyhq.com/photoroom
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/photoroom
+  notes: Paris FR. AI photo editor, Head of CV / Head of ML roles.
+  enabled: true
+  provider: ashby
+  provider_slug: photoroom
+- name: Pigment
+  careers_url: https://jobs.lever.co/pigment
+  notes: Paris FR / NYC / London. AI-powered FP&A planning platform.
+  enabled: true
+  provider: lever
+  provider_slug: pigment
+  scan_method: http
+- name: Wayve
+  careers_url: https://job-boards.greenhouse.io/wayve
+  notes: London UK. Embodied AI for self-driving, ML & robotics roles.
+  enabled: true
+  provider: greenhouse
+  provider_slug: wayve
+  api_url: https://boards-api.greenhouse.io/v1/boards/wayve/jobs
+  scan_method: api
+- name: Isomorphic Labs
+  careers_url: https://job-boards.greenhouse.io/isomorphiclabs
+  notes: London / Lausanne / Cambridge MA. DeepMind spin-out for drug discovery AI.
+  enabled: true
+  provider: greenhouse
+  provider_slug: isomorphiclabs
+  api_url: https://boards-api.greenhouse.io/v1/boards/isomorphiclabs/jobs
+  scan_method: api
+- name: PhysicsX
+  careers_url: https://job-boards.greenhouse.io/physicsx
+  notes: London UK. Physics-informed ML for engineering, ~40 roles.
+  enabled: true
+  provider: greenhouse
+  provider_slug: physicsx
+  api_url: https://boards-api.greenhouse.io/v1/boards/physicsx/jobs
+  scan_method: api
+- name: Stability AI
+  careers_url: https://job-boards.greenhouse.io/stabilityai
+  notes: London / SF. Generative AI image/video research lab.
+  enabled: true
+  provider: greenhouse
+  provider_slug: stabilityai
+  api_url: https://boards-api.greenhouse.io/v1/boards/stabilityai/jobs
+  scan_method: api
+- name: Synthesia
+  careers_url: https://jobs.ashbyhq.com/synthesia
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/synthesia OR site:job-boards.greenhouse.io/synthesia
+  notes: London UK. AI video generation for enterprise, $4B valuation.
+  enabled: true
+  provider: ashby
+  provider_slug: synthesia
+- name: Faculty
+  careers_url: https://jobs.ashbyhq.com/faculty
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/faculty
+  notes: London UK. Applied AI consultancy. 80+ roles, AI Safety / MLE / Delivery.
+  enabled: true
+  provider: ashby
+  provider_slug: faculty
+- name: Causaly
+  careers_url: https://jobs.ashbyhq.com/causaly
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/causaly
+  notes: London / Athens. Biomedical knowledge graph + AI.
+  enabled: true
+  provider: ashby
+  provider_slug: causaly
+- name: Lovable
+  careers_url: https://jobs.ashbyhq.com/lovable
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/lovable
+  notes: Stockholm SE. AI app builder (text-to-app), 80+ open roles.
+  enabled: true
+  provider: ashby
+  provider_slug: lovable
+- name: Legora
+  careers_url: https://jobs.ashbyhq.com/legora
+  scan_method: http
+  scan_query: site:jobs.ashbyhq.com/legora
+  notes: Stockholm SE / NYC / London. AI-native legal workspace.
+  enabled: true
+  provider: ashby
+  provider_slug: legora
+- name: Spotify
+  careers_url: https://jobs.lever.co/spotify
+  notes: Stockholm SE / NYC / London. Audio platform, large ML/personalization org.
+  enabled: true
+  provider: lever
+  provider_slug: spotify
+  scan_method: http
+- name: Vinted
+  careers_url: https://jobs.lever.co/vinted
+  notes: Vilnius LT / Berlin. C2C marketplace unicorn, data science & ML roles.
+  enabled: true
+  provider: lever
+  provider_slug: vinted
+  scan_method: http
+- name: Amplemarket
+  careers_url: https://job-boards.greenhouse.io/amplemarket
+  notes: Lisbon PT / Remote. AI-native sales platform.
+  enabled: true
+  provider: greenhouse
+  provider_slug: amplemarket
+  api_url: https://boards-api.greenhouse.io/v1/boards/amplemarket/jobs
+  scan_method: api
